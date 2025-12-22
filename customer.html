@@ -1,0 +1,3169 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ข้อมูลผู้ป่วย - คลินิกแพทย์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;700&family=Inter:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', 'Kanit', sans-serif;
+            background-color: #f0f2f5;
+            touch-action: pan-y;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #a0a0a0;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #808080;
+        }
+
+        .sidebar-link {
+            transition: background-color 0.3s ease, color 0.3s ease, padding 0.3s ease;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background-color: #374151;
+            /* darker slate */
+            color: #f3f4f6;
+            /* lighter slate */
+        }
+
+        #sidebar {
+            transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+            border-top-right-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+            overflow-x: hidden;
+            will-change: transform, width;
+            touch-action: pan-y;
+        }
+
+        #sidebar.dragging {
+            transition: none !important;
+        }
+
+        .sidebar-text {
+            opacity: 1;
+            transform: translateX(0);
+            transition: opacity 0.2s ease-out 0.1s, transform 0.2s ease-out 0.1s, display 0s linear 0.3s;
+            white-space: nowrap;
+        }
+
+        #sidebar.sidebar-collapsed {
+            width: 5rem;
+        }
+
+        #sidebar:not(.sidebar-collapsed) {
+            width: 14rem;
+        }
+
+        #sidebar.sidebar-collapsed .sidebar-text {
+            opacity: 0;
+            transform: translateX(-10px);
+            pointer-events: none;
+            display: none !important;
+        }
+
+        #sidebar.sidebar-collapsed .clinic-logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+        }
+
+        #sidebar.sidebar-collapsed .clinic-logo-container .fa-clinic-medical {
+            margin-right: 0 !important;
+        }
+
+        #sidebar.sidebar-collapsed .sidebar-link {
+            justify-content: center;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        #sidebar.sidebar-collapsed .sidebar-link .fa-fw {
+            margin-right: 0;
+        }
+
+        #sidebar.sidebar-collapsed #desktopSidebarToggleButton {
+            justify-content: center;
+        }
+
+        #sidebar.sidebar-collapsed #desktopSidebarToggleButton .sidebar-text {
+            display: none !important;
+        }
+
+
+        #sidebarOverlay {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #sidebarOverlay.dragging {
+            transition: none !important;
+        }
+
+        #sidebarOverlay.hidden {
+            visibility: hidden;
+            opacity: 0;
+        }
+
+        #mainContentArea {
+            min-height: 0;
+            touch-action: pan-y;
+            overscroll-behavior-y: contain;
+        }
+
+        #mainContentArea>main {
+            min-height: 0;
+        }
+
+        .sticky-search-header {
+            position: sticky;
+            z-index: 19;
+            background-color: #f0f2f5;
+            padding: 1rem;
+        }
+
+        .modal-container {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out, background-color 0.3s ease-in-out, visibility 0s linear 0.3s;
+        }
+
+        .modal-container:not(.modal-hidden) {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition-delay: 0s;
+            background-color: rgba(30, 41, 59, 0.75);
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            padding: 0;
+            position: relative;
+            opacity: 0;
+            transform: scale(0.9) translateY(15px);
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.25s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-container:not(.modal-hidden) .modal-content {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header-sticky {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            background-color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            flex-shrink: 0;
+        }
+
+        .modal-body-scrollable {
+            padding: 1rem 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+            scroll-behavior: smooth;
+        }
+
+        @media (min-width: 640px) {
+
+            .modal-header-sticky,
+            .modal-body-scrollable {
+                padding: 1.5rem;
+            }
+        }
+
+        input[readonly],
+        textarea[readonly] {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+        }
+
+        select[disabled] {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+        }
+
+        .header-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 40;
+            min-width: 200px;
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+            max-height: 0;
+            overflow: hidden;
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out, max-height 0.3s ease-out;
+        }
+
+        .header-dropdown.dropdown-active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            max-height: 500px;
+        }
+
+        .header-dropdown a,
+        .header-dropdown .dropdown-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: #374151;
+            transition: background-color 0.2s ease;
+        }
+
+        .header-dropdown a:hover,
+        .header-dropdown .dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        #patientTable thead th {
+            padding: 0.75rem 1rem;
+        }
+
+        #patientTable tbody td {
+            padding: 0.75rem 1rem;
+        }
+
+        .patient-table-row {
+            cursor: pointer;
+        }
+
+        @media (max-width: 767px) {
+            #patientTable tbody td.premium-name-cell {
+                display: flex;
+                align-items: center;
+            }
+
+            #patientTable thead {
+                display: none;
+            }
+
+            #patientTable tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                overflow: hidden;
+                padding: 0.75rem;
+            }
+
+            #patientTable tbody td {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0.25rem;
+                text-align: left;
+                font-size: 0.875rem;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            #patientTable tbody tr td:last-child {
+                border-bottom: none;
+            }
+
+            #patientTable tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #374151;
+                padding-right: 0.5rem;
+                flex-shrink: 0;
+            }
+
+            #patientTable tbody td.actions-cell {
+                display: block;
+                padding-top: 0.75rem;
+            }
+
+            #patientTable tbody td.actions-cell::before {
+                display: none;
+            }
+
+            #patientTable tbody td.actions-cell .flex {
+                justify-content: space-around;
+            }
+
+            #patientTable tbody td.actions-cell button {
+                padding: 0.5rem;
+            }
+
+            #patientTable tbody td.actions-cell button i {
+                font-size: 1.25rem;
+            }
+        }
+
+        .treatment-item-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .treatment-item-row select {
+            flex-grow: 1;
+        }
+
+        .treatment-item-row input[type="text"] {
+            flex-grow: 2;
+        }
+
+        .remove-treatment-button {
+            color: #ef4444;
+            background: none;
+            border: none;
+            padding: 0.25rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .remove-treatment-button:hover {
+            color: #dc2626;
+        }
+
+        #addTreatmentSection {
+            transition: opacity 0.3s ease-out, max-height 0.4s ease-out, transform 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out;
+            opacity: 1;
+            transform: translateY(0);
+            max-height: 1000px;
+            overflow: hidden;
+        }
+
+        #addTreatmentSection.section-hidden {
+            opacity: 0 !important;
+            transform: translateY(10px) !important;
+            max-height: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            pointer-events: none;
+        }
+
+        .button-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        button .button-spinner {
+            vertical-align: middle;
+        }
+
+        button .button-text {
+            vertical-align: middle;
+        }
+
+        /* Print Styles */
+        #print-container,
+        #print-opd-container {
+            display: none;
+        }
+
+        .data-field {
+            padding: 0 0.25rem;
+            padding-bottom: 1px;
+            line-height: 1.6;
+            min-width: 40px;
+            vertical-align: bottom;
+            border-bottom: 1px solid transparent;
+            border-image: repeating-linear-gradient(to right, #4b5563 0, #4b5563 1px, transparent 1px, transparent 4px) 1;
+            white-space: nowrap;
+            /* Prevent text from wrapping */
+            overflow: hidden;
+            /* Hide overflow */
+        }
+
+        .data-label {
+            font-weight: 600;
+            color: #1f2937;
+            white-space: nowrap;
+            margin-right: 0.25rem;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            font-size: 9pt;
+        }
+
+        .checkbox {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #374151;
+            margin-right: 6px;
+            display: inline-flex;
+            /* Use flex to center content */
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media print {
+            body>*:not(.printing) {
+                display: none !important;
+            }
+
+            @page {
+                size: A5 landscape;
+                margin: 0;
+            }
+
+            .printing {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                height: 148mm;
+                box-sizing: border-box;
+                font-family: 'Sarabun', sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-size: 10pt;
+            }
+
+            #print-container.printing {
+                display: block !important;
+                padding: 1cm;
+            }
+
+            #print-opd-container.printing {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                padding: 1cm;
+                height: 100%;
+            }
+
+            .printing .data-field {
+                border-image: repeating-linear-gradient(to right, black 0, black 1px, transparent 1px, transparent 4px) 1 !important;
+            }
+
+            #print-container.printing .data-field {
+                text-align: center !important;
+            }
+
+            #print-container.printing #print_symptoms,
+            #print-container.printing #print_allergies,
+            #print-container.printing #print_chronicDisease,
+            #print-container.printing #print_hn,
+            #print-container.printing #print_recordDate {
+                text-align: left !important;
+            }
+
+            .printing,
+            .printing * {
+                color: #000 !important;
+            }
+
+            .printing .checkbox {
+                border-color: #000 !important;
+            }
+        }
+
+        .address-print-wrapper {
+            position: relative;
+            padding: 0 0.25rem;
+            min-height: 1.6em;
+            /* Set height for one line to ensure baseline alignment */
+            padding-bottom: 2px;
+            /* Space for the line */
+        }
+
+        .address-print-wrapper::after {
+            content: '';
+            position: absolute;
+            left: 0.25rem;
+            right: 0.25rem;
+            bottom: 0;
+            height: 1px;
+            border-bottom: 1px solid transparent;
+            border-image: repeating-linear-gradient(to right, #4b5563 0, #4b5563 1px, transparent 1px, transparent 4px) 1;
+        }
+
+        .printing .address-print-wrapper::after {
+            border-image: repeating-linear-gradient(to right, black 0, black 1px, transparent 1px, transparent 4px) 1 !important;
+        }
+
+        #print_opd_address {
+            display: block;
+            /* Make it a block to control its layout */
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        /* VIP/Premium Styles */
+        .text-gold {
+            color: #d97706;
+        }
+
+        /* Amber-600 for better readability than pure gold */
+        .vip-badge-icon {
+            color: #fbbf24;
+            margin-left: 0.5rem;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+        }
+
+        .premium-status-text {
+            color: #b45309;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #fcd34d;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="flex h-full">
+        <!-- Sidebar -->
+        <aside id="sidebar"
+            class="w-56 bg-gradient-to-b from-slate-800 to-slate-900 text-gray-200 p-5 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:translate-x-0 z-30 shadow-lg rounded-r-lg">
+            <a href="index.html" class="clinic-logo-container flex items-center px-4 py-2">
+                <i class="fas fa-clinic-medical fa-2x text-teal-400 mr-2"></i>
+                <h1 class="text-xl font-bold text-white sidebar-text whitespace-nowrap">คลินิกหมอจีน</h1>
+            </a>
+            <nav class="space-y-2 mt-4 flex-grow">
+                <a href="index.html" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-tachometer-alt fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">แดชบอร์ด</span>
+                </a>
+                <a href="appointments.html" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-calendar-alt fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">การนัดหมาย</span>
+                </a>
+                <a href="customer-data.html" class="sidebar-link active flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-users fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">ข้อมูลผู้ป่วย</span>
+                </a>
+                <a href="POS.html" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-cash-register fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">ระบบขาย(POS)</span>
+                </a>
+                <a href="#" id="openCourseModalLink" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-layer-group fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">จัดการคอร์ส</span>
+                </a>
+                <hr class="my-2 border-slate-700">
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-user-md fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">พนักงาน</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-pills fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">คลังยา/สมุนไพร</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-file-invoice-dollar fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">การเงิน/ค่าใช้จ่าย</span>
+                </a>
+                <hr class="my-2 border-slate-700">
+                <a href="#" id="printReportLink" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-print fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">พิมพ์รายงาน</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-chart-bar fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">รายงาน</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-cog fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">ตั้งค่า</span>
+                </a>
+            </nav>
+            <div class="mt-auto">
+                <a href="#" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                    <i class="fas fa-sign-out-alt fa-fw w-6 h-6"></i>
+                    <span class="sidebar-text">ออกจากระบบ</span>
+                </a>
+            </div>
+        </aside>
+
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+
+        <div id="mainContentArea" class="flex-1 flex flex-col overflow-y-auto md:pl-56">
+            <header id="mainPageHeader" class="bg-white shadow-md p-4 sticky top-0 z-20 rounded-b-xl md:rounded-xl">
+                <div class="flex justify-between items-center">
+                    <button id="mobileMenuButton" class="md:hidden text-gray-600 hover:text-gray-800 focus:outline-none"
+                        aria-label="Open menu">
+                        <i class="fas fa-bars fa-lg"></i>
+                    </button>
+                    <h2 class="text-xl font-semibold text-gray-700">ข้อมูลผู้ป่วย</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <button id="userProfileButton" class="flex items-center space-x-2 focus:outline-none"
+                                aria-label="User profile options">
+                                <img src="https://placehold.co/40x40/E2E8F0/4A5568?text=User" alt="รูปโปรไฟล์"
+                                    class="w-8 h-8 rounded-full object-cover">
+                                <span id="loggedInUserName" class="hidden md:inline text-gray-700">หมอสมชาย</span>
+                                <i class="fas fa-chevron-down text-xs text-gray-500" aria-hidden="true"></i>
+                            </button>
+                            <div id="userProfileDropdown" class="header-dropdown hidden origin-top-right mt-2">
+                                <div class="py-1 rounded-md bg-white shadow-xs">
+                                    <a href="#"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">โปรไฟล์</a>
+                                    <a href="#"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">ตั้งค่า</a>
+                                    <hr class="my-1 border-gray-200">
+                                    <a href="#"
+                                        class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">ออกจากระบบ</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div id="patientSearchContainer" class="sticky-search-header">
+                <div class="container mx-auto px-4 sm:px-6 md:px-10">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="relative flex-grow w-full sm:w-auto">
+                            <label for="patientSearchInputOnPage" class="sr-only">ค้นหาผู้ป่วย</label>
+                            <input type="text" id="patientSearchInputOnPage"
+                                placeholder="ค้นหาผู้ป่วย (HN, ชื่อ, นามสกุล, เบอร์โทร)..."
+                                class="w-full py-3 px-4 pl-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-shadow">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                        <button id="openPatientModalButton"
+                            class="w-full sm:w-auto bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out flex items-center justify-center space-x-2">
+                            <i class="fas fa-user-plus" aria-hidden="true"></i>
+                            <span>เพิ่มผู้ป่วยใหม่</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <main class="p-4 sm:p-6 md:p-10 space-y-6 pt-0">
+                <section class="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-6">รายชื่อผู้ป่วยทั้งหมด</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left" id="patientTable">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="hn">
+                                        <div class="flex items-center justify-between">
+                                            <span>CODE HN</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="idCardNumber">
+                                        <div class="flex items-center justify-between">
+                                            <span>เลขบัตรประชาชน</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="firstName">
+                                        <div class="flex items-center justify-between">
+                                            <span>ผู้ป่วย</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="phoneNumber">
+                                        <div class="flex items-center justify-between">
+                                            <span>เบอร์โทรศัพท์</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="registrationDate">
+                                        <div class="flex items-center justify-between">
+                                            <span>วันที่ลงทะเบียน</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer"
+                                        data-sort-key="lastVisitDate">
+                                        <div class="flex items-center justify-between">
+                                            <span>วันที่เข้ารักษาล่าสุด</span>
+                                            <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider text-center cursor-pointer"
+                                        data-sort-key="treatmentCount">
+                                        <div class="flex items-center justify-center">
+                                            <span class="text-center">การรักษา<br>(ครั้ง)</span>
+                                            <span class="sort-icon ml-2"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th
+                                        class="p-2 sm:p-3 md:px-4 md:py-3 text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider text-center">
+                                        ดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="patientTableBody" aria-live="polite">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="patientTableLoadingIndicator" class="hidden text-center py-4" aria-hidden="true">
+                        <i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>กำลังโหลดข้อมูลเพิ่มเติม...
+                    </div>
+                    <div id="noMorePatientDataIndicator" class="hidden text-center text-gray-500 py-4"
+                        aria-hidden="true">
+                        ไม่พบข้อมูลเพิ่มเติม
+                    </div>
+                    <div id="noPatientDataFoundMessage" class="hidden text-center text-gray-500 py-6"
+                        aria-hidden="true">
+                        ไม่พบข้อมูลผู้ป่วย
+                    </div>
+                </section>
+
+                <footer class="text-center text-sm text-gray-500 py-8">
+                    © 2025 คลินิกแพทย์แผนจีนตัวอย่าง. สงวนลิขสิทธิ์.
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- Patient Modal -->
+    <div id="patientModal" class="modal-container modal-hidden" role="dialog" aria-modal="true"
+        aria-labelledby="patientModalMainTitle" data-mode="">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content" style="max-width: 60rem;">
+            <div class="modal-header-sticky flex justify-between items-center">
+                <h3 class="text-xl md:text-2xl font-semibold text-gray-800" id="patientModalMainTitle">ข้อมูลผู้ป่วย
+                </h3>
+                <button id="closePatientModalButton" class="text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="ปิดหน้าต่างข้อมูลผู้ป่วย">
+                    <i class="fas fa-times fa-lg" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="modal-body-scrollable">
+                <div id="patientDetailsFormSection">
+                    <form id="patientForm" class="space-y-4 md:space-y-6">
+                        <input type="hidden" id="patientRecordId" name="patientRecordId">
+                        <div class="border-b pb-3 mb-3 md:pb-4 md:mb-4">
+                            <h4 class="text-lg font-medium text-gray-800" id="patientFormTitle">กรอกข้อมูลผู้ป่วยใหม่ /
+                                แก้ไขข้อมูล</h4>
+                        </div>
+
+                        <h4 class="text-md font-semibold text-gray-700 -mb-2">ข้อมูลส่วนตัว</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                            <div>
+                                <label for="hn" class="block text-sm font-medium text-gray-700 mb-1">HN (รหัสผู้ป่วย)
+                                    <span class="text-red-500">*</span></label>
+                                <input type="text" name="hn" id="hn" required placeholder="จะถูกสร้างโดยอัตโนมัติ"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-gray-100 cursor-not-allowed"
+                                    readonly>
+                            </div>
+                            <div>
+                                <label for="title" class="block text-sm font-medium text-gray-700 mb-1">คำนำหน้าชื่อ
+                                    <span class="text-red-500">*</span></label>
+                                <select id="title" name="title" required
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                                    <option value="">เลือกคำนำหน้า</option>
+                                    <option value="นาย">นาย</option>
+                                    <option value="นาง">นาง</option>
+                                    <option value="นางสาว">นางสาว</option>
+                                    <option value="เด็กชาย">เด็กชาย</option>
+                                    <option value="เด็กหญิง">เด็กหญิง</option>
+                                    <option value="อื่นๆ">อื่นๆ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อ <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" name="firstName" id="firstName" required placeholder="กรอกชื่อจริง"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">นามสกุล <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" name="lastName" id="lastName" required placeholder="กรอกนามสกุล"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                            <div>
+                                <label for="nickname"
+                                    class="block text-sm font-medium text-gray-700 mb-1">ชื่อเล่น</label>
+                                <input type="text" name="nickname" id="nickname" placeholder="กรอกชื่อเล่น"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="dob" class="block text-sm font-medium text-gray-700 mb-1">วัน/เดือน/ปีเกิด
+                                    <span class="text-red-500">*</span></label>
+                                <input type="date" name="dob" id="dob" required
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flatpickr-input">
+                            </div>
+                            <div>
+                                <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">เพศ</label>
+                                <select id="gender" name="gender"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                                    <option value="">ไม่ระบุ</option>
+                                    <option value="ชาย">ชาย</option>
+                                    <option value="หญิง">หญิง</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="age" class="block text-sm font-medium text-gray-700 mb-1">อายุ</label>
+                                <input type="text" name="age" id="age" placeholder="คำนวณอัตโนมัติ"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-gray-100 cursor-not-allowed"
+                                    readonly>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                            <div>
+                                <label for="idCardNumber"
+                                    class="block text-sm font-medium text-gray-700 mb-1">หมายเลขบัตรประชาชน/พาสปอร์ต</label>
+                                <input type="text" name="idCardNumber" id="idCardNumber"
+                                    placeholder="กรอกตัวเลขเท่านั้น" title="กรอกเฉพาะตัวเลข"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="nationality"
+                                    class="block text-sm font-medium text-gray-700 mb-1">สัญชาติ</label>
+                                <input type="text" name="nationality" id="nationality" placeholder="เช่น ไทย"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="race" class="block text-sm font-medium text-gray-700 mb-1">เชื้อชาติ</label>
+                                <input type="text" name="race" id="race" placeholder="เช่น ไทย"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="religion" class="block text-sm font-medium text-gray-700 mb-1">ศาสนา</label>
+                                <input type="text" name="religion" id="religion" placeholder="เช่น พุทธ"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                            <div class="md:col-span-2">
+                                <label for="occupation"
+                                    class="block text-sm font-medium text-gray-700 mb-1">อาชีพ</label>
+                                <input type="text" name="occupation" id="occupation" placeholder="กรอกอาชีพ"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Premium Member Section -->
+                        <h4 class="text-md font-semibold text-gray-700 -mb-2 pt-2 flex items-center">
+                            <i class="fas fa-crown text-yellow-500 mr-2"></i> ข้อมูลสมาชิกพรีเมี่ยม (PREMIUM MEMBER)
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 items-end">
+                            <div class="md:col-span-2">
+                                <label for="premiumExpiryDate"
+                                    class="block text-sm font-medium text-gray-700 mb-1">วันหมดอายุสมาชิกพรีเมี่ยม</label>
+                                <input type="date" name="premiumExpiryDate" id="premiumExpiryDate"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flatpickr-input"
+                                    placeholder="เลือกวันที่ หรือเว้นว่างไว้">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
+                                <div id="premiumStatusDisplay" class="mt-1 block w-full py-2 px-3 text-gray-700"></div>
+                            </div>
+                        </div>
+
+                        <h4 class="text-md font-semibold text-gray-700 -mb-2 pt-2">ข้อมูลติดต่อ</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                            <div class="md:col-span-4"><label for="address_number"
+                                    class="block text-sm font-medium text-gray-700 mb-1">ที่อยู่</label></div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_number" id="address_number" placeholder="เลขที่"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_moo" id="address_moo" placeholder="หมู่ที่"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-2">
+                                <input type="text" name="address_road" id="address_road" placeholder="ถนน"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_subdistrict" id="address_subdistrict"
+                                    placeholder="ตำบล/แขวง"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_district" id="address_district" placeholder="อำเภอ/เขต"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_province" id="address_province" placeholder="จังหวัด"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="md:col-span-1">
+                                <input type="text" name="address_zipcode" id="address_zipcode"
+                                    placeholder="รหัสไปรษณีย์"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="phoneNumber"
+                                class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ผู้ป่วย <span
+                                    class="text-red-500">*</span></label>
+                            <div id="phoneNumbersContainer" class="space-y-2">
+                            </div>
+                            <button type="button" id="addPhoneNumberButton"
+                                class="mt-2 text-sm text-teal-600 hover:text-teal-800 font-medium flex items-center">
+                                <i class="fas fa-plus-circle mr-1"></i>เพิ่มเบอร์โทรศัพท์ผู้ป่วย
+                            </button>
+                        </div>
+
+                        <h4 class="text-md font-semibold text-gray-700 -mb-2 pt-2">ผู้ติดต่อกรณีฉุกเฉิน</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                            <div>
+                                <label for="emergency_contact_name"
+                                    class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ติดต่อ</label>
+                                <input type="text" name="emergency_contact_name" id="emergency_contact_name"
+                                    placeholder="ชื่อ-สกุล"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="emergency_contact_relation"
+                                    class="block text-sm font-medium text-gray-700 mb-1">เกี่ยวข้องเป็น</label>
+                                <input type="text" name="emergency_contact_relation" id="emergency_contact_relation"
+                                    placeholder="เช่น บิดา, มารดา"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="emergency_contact_phone"
+                                    class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                                <input type="tel" name="emergency_contact_phone" id="emergency_contact_phone"
+                                    placeholder="08x-xxx-xxxx" title="กรุณากรอกเบอร์โทรศัพท์ 9 หรือ 10 หลัก"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="emergency_contact_address"
+                                class="block text-sm font-medium text-gray-700 mb-1">ที่อยู่ที่ติดต่อได้</label>
+                            <textarea name="emergency_contact_address" id="emergency_contact_address" rows="2"
+                                placeholder="กรอกที่อยู่ฉุกเฉิน..."
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"></textarea>
+                        </div>
+
+                        <hr class="my-4 md:my-6">
+
+                        <h4 class="text-md font-semibold text-gray-700 -mb-2">ข้อมูลสุขภาพเบื้องต้น</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            <div>
+                                <label for="bloodGroup"
+                                    class="block text-sm font-medium text-gray-700 mb-1">หมู่เลือด</label>
+                                <select id="bloodGroup" name="bloodGroup"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                                    <option value="">ไม่ระบุ</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="O">O</option>
+                                    <option value="AB">AB</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="chiefComplaint"
+                                    class="block text-sm font-medium text-gray-700 mb-1">อาการสำคัญที่มาพบแพทย์ <span
+                                        class="text-red-500">*</span></label>
+                                <textarea name="chiefComplaint" id="chiefComplaint" rows="3" required
+                                    placeholder="ระบุอาการสำคัญ..."
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"></textarea>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="allergies"
+                                class="block text-sm font-medium text-gray-700 mb-1">ประวัติการแพ้อาหาร/ยา/สมุนไพร
+                                (ถ้ามี)</label>
+                            <textarea name="allergies" id="allergies" rows="2"
+                                placeholder="ระบุอาหาร, ยา หรือสมุนไพรที่แพ้..."
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label for="medicalHistory" class="block text-sm font-medium text-gray-700 mb-1">โรคประจำตัว
+                                (ถ้ามี)</label>
+                            <textarea name="medicalHistory" id="medicalHistory" rows="2"
+                                placeholder="ระบุโรคประจำตัว..."
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"></textarea>
+                        </div>
+
+                        <div id="patientFormButtons"
+                            class="pt-4 md:pt-6 mt-4 md:mt-6 border-t border-gray-200 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
+                            <button type="button" id="cancelPatientFormButton"
+                                class="w-full sm:w-auto px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium">
+                                ยกเลิก
+                            </button>
+                            <button type="submit" id="savePatientButton"
+                                class="w-full sm:w-auto px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-lg shadow hover:shadow-md transition-all duration-300 font-semibold inline-flex items-center justify-center">
+                                <span class="button-spinner mr-2 hidden" aria-hidden="true"></span>
+                                <i class="fas fa-save mr-2 button-icon" aria-hidden="true"></i>
+                                <span class="button-text">บันทึกข้อมูลผู้ป่วย</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="treatmentHistoryDisplaySection"
+                    class="hidden mt-6 md:mt-8 pt-4 md:pt-6 border-t border-gray-300">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                        <h4 class="text-lg md:text-xl font-semibold text-gray-800">ประวัติการรักษาของ: <span
+                                id="historyPatientNameDisplay" class="text-teal-600"></span> <span
+                                id="historyTreatmentCountDisplay" class="text-gray-600 font-medium text-base"></span>
+                        </h4>
+                        <button id="toggleAddTreatmentFormButton"
+                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors duration-300 flex-shrink-0 text-sm">
+                            <i class="fas fa-plus mr-2" aria-hidden="true"></i>เพิ่มประวัติการรักษา
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-60 md:max-h-80 border border-gray-200 rounded-lg">
+                        <table class="w-full text-left min-w-[700px]">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer"
+                                        style="width: 120px;" data-sort-key="dateTime">
+                                        <div class="flex items-center justify-center">
+                                            <span>วัน-เวลา</span>
+                                            <span class="sort-icon ml-2"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Vitals
+                                    </th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">อาการ
+                                    </th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        การวินิจฉัย (แพทย์แผนจีน)</th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        การรักษา</th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        แพทย์ผู้รักษา</th>
+                                    <th class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        หมายเหตุ</th>
+                                    <th
+                                        class="p-3 text-xs font-semibold text-gray-700 uppercase tracking-wider text-center">
+                                        พิมพ์</th>
+                                </tr>
+                            </thead>
+                            <tbody id="treatmentHistoryTableBodyDisplay" class="divide-y divide-gray-200 bg-white">
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="noTreatmentHistoryMessageDisplay" class="hidden text-center text-gray-500 mt-4">
+                        ไม่พบประวัติการรักษา</p>
+                </div>
+
+                <div id="addTreatmentSection"
+                    class="section-hidden mt-4 md:mt-6 pt-4 md:pt-6 border-t border-dashed border-gray-400">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-4" id="addTreatmentFormHeader">
+                        เพิ่มประวัติการรักษาใหม่</h4>
+                    <form id="addTreatmentForm" class="space-y-4">
+                        <input type="hidden" id="treatmentPatientIdCard" name="treatmentPatientIdCard">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="treatmentDateTime"
+                                    class="block text-sm font-medium text-gray-700 mb-1">วัน-เวลาที่รักษา</label>
+                                <input type="text" id="treatmentDateTime" name="treatmentDateTime" readonly
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm flatpickr-input">
+                            </div>
+                            <div>
+                                <label for="treatmentPractitioner"
+                                    class="block text-sm font-medium text-gray-700 mb-1">แพทย์ผู้รักษา <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" id="treatmentPractitioner" name="practitioner" required readonly
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm cursor-not-allowed">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 border-t pt-4 mt-4">
+                            <div>
+                                <label for="treatmentTemp" class="block text-sm font-medium text-gray-700 mb-1">T
+                                    (°C)</label>
+                                <input type="text" id="treatmentTemp" name="temp" placeholder="37.0"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="treatmentPulse" class="block text-sm font-medium text-gray-700 mb-1">P
+                                    (/min)</label>
+                                <input type="text" id="treatmentPulse" name="pulse" placeholder="80"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="treatmentBP" class="block text-sm font-medium text-gray-700 mb-1">BP
+                                    (mmHg)</label>
+                                <input type="text" id="treatmentBP" name="bp" placeholder="120/80"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="treatmentWeight"
+                                    class="block text-sm font-medium text-gray-700 mb-1">น้ำหนัก (kg)</label>
+                                <input type="text" id="treatmentWeight" name="weight" placeholder="60"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="treatmentHeight"
+                                    class="block text-sm font-medium text-gray-700 mb-1">ส่วนสูง (cm)</label>
+                                <input type="text" id="treatmentHeight" name="height" placeholder="165"
+                                    class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="treatmentSymptoms"
+                                class="block text-sm font-medium text-gray-700 mb-1">อาการสำคัญ <span
+                                    class="text-red-500">*</span></label>
+                            <textarea id="treatmentSymptoms" name="symptoms" rows="2" required
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+                                placeholder="ระบุอาการสำคัญ..."></textarea>
+                        </div>
+                        <div>
+                            <label for="treatmentDiagnosisTCM"
+                                class="block text-sm font-medium text-gray-700 mb-1">การวินิจฉัย (แพทย์แผนจีน)</label>
+                            <textarea id="treatmentDiagnosisTCM" name="diagnosisTCM" rows="2"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+                                placeholder="ระบุการวินิจฉัย..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">การรักษาที่ให้ <span
+                                    class="text-red-500">*</span></label>
+                            <div id="treatmentGivenContainer" class="space-y-2">
+                            </div>
+                            <button type="button" id="addTreatmentItemButton"
+                                class="mt-2 text-sm text-teal-600 hover:text-teal-800 font-medium flex items-center">
+                                <i class="fas fa-plus-circle mr-1" aria-hidden="true"></i>เพิ่มรายการรักษา
+                            </button>
+                        </div>
+                        <div>
+                            <label for="treatmentNotes"
+                                class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label>
+                            <textarea id="treatmentNotes" name="notes" rows="2"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+                                placeholder="หมายเหตุ..."></textarea>
+                        </div>
+                        <div class="flex justify-end space-x-3 pt-2">
+                            <button type="button" id="cancelAddTreatmentButton"
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium">
+                                ยกเลิก
+                            </button>
+                            <button type="submit" id="saveTreatmentButton"
+                                class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow hover:shadow-md transition-all duration-300 font-semibold inline-flex items-center justify-center">
+                                <span class="button-spinner mr-2 hidden" aria-hidden="true"></span>
+                                <i class="fas fa-plus-circle mr-2 button-icon" aria-hidden="true"></i>
+                                <span class="button-text">บันทึกการรักษา</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customAlertBox"
+        class="fixed top-1/2 left-1/2 z-[100] w-full max-w-sm p-6 bg-white rounded-lg shadow-xl transition-all duration-300 ease-out -translate-x-1/2 -translate-y-1/2 scale-95 opacity-0 invisible"
+        role="alertdialog" aria-modal="true" aria-labelledby="customAlertMessage">
+        <div id="customAlertMessage" class="text-gray-700 mb-4 text-center" aria-live="assertive"></div>
+        <button id="customAlertCloseButton"
+            class="w-full mt-4 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors font-medium">ตกลง</button>
+    </div>
+
+    <!-- Printable Medical Record -->
+    <div id="print-container">
+        <div class="a5-container">
+            <header class="flex justify-between items-start mb-1">
+                <div>
+                    <h1 class="text-lg font-bold">ฟู ซิน ไฉ คลินิก</h1>
+                    <p class="text-xs">79/47 ปากทางเข้าหมู่บ้านพรธิสาร 5 คลอง 7</p>
+                    <p class="text-xs">ต.ลำผักกูด อ.ธัญบุรี จ.ปทุมธานี 12110</p>
+                    <p class="text-xs">โทร. 062-826-1696</p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="flex items-baseline">
+                        <span class="data-label text-lg font-bold">HN</span>
+                        <span id="print_hn" class="data-field text-left pl-2 text-lg font-bold"
+                            style="width: 90px;">&nbsp;</span>
+                    </div>
+                    <div class="flex items-baseline mt-1">
+                        <span class="data-label">วันที่:</span>
+                        <span id="print_recordDate" class="data-field text-center" style="width: 90px;">&nbsp;</span>
+                    </div>
+                </div>
+            </header>
+            <div class="text-center mb-2">
+                <h2 class="text-xl font-bold underline">ใบเวชระเบียน</h2>
+            </div>
+            <div class="space-y-2">
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-1/3 pr-3"><span class="data-label">ชื่อ:</span><span
+                            id="print_firstName" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/3 px-3"><span class="data-label">นามสกุล:</span><span
+                            id="print_lastName" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/3 pl-3"><span class="data-label">ชื่อเล่น:</span><span
+                            id="print_nickname" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-4/12 pr-2"><span class="data-label">วันเดือนปีเกิด:</span><span
+                            id="print_dob" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-3/12 px-2"><span class="data-label">อายุ:</span><span
+                            id="print_age" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-5/12 pl-2"><span
+                            class="data-label">หมายเลขบัตรประชาชน:</span><span id="print_idCard"
+                            class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-1/4 pr-2"><span class="data-label">เพศ:</span><span
+                            id="print_gender" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/4 px-2"><span class="data-label">สัญชาติ:</span><span
+                            id="print_nationality" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/4 px-2"><span class="data-label">เชื้อชาติ:</span><span
+                            id="print_race" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/4 pl-2"><span class="data-label">ศาสนา:</span><span
+                            id="print_religion" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-1/2 pr-3"><span class="data-label">อาชีพ:</span><span
+                            id="print_occupation" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/2 pl-3"><span class="data-label">เบอร์โทรศัพท์:</span><span
+                            id="print_phone" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-3/12 pr-3"><span class="data-label">ที่อยู่บ้านเลขที่:</span><span
+                            id="print_addressNo" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-2/12 px-3"><span class="data-label">หมู่ที่:</span><span
+                            id="print_addressMoo" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-7/12 pl-3"><span class="data-label">ถนน:</span><span
+                            id="print_addressStreet" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="flex w-full items-baseline">
+                    <div class="flex items-baseline w-1/4 pr-3"><span class="data-label">ตำบล/แขวง:</span><span
+                            id="print_addressSubdistrict" class="data-field flex-grow adjustable-font">&nbsp;</span>
+                    </div>
+                    <div class="flex items-baseline w-1/4 px-3"><span class="data-label">อำเภอ/เขต:</span><span
+                            id="print_addressDistrict" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/4 px-3"><span class="data-label">จังหวัด:</span><span
+                            id="print_addressProvince" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/4 pl-3"><span class="data-label">รหัสไปรษณีย์:</span><span
+                            id="print_addressZip" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                </div>
+                <div class="mt-2">
+                    <div class="flex w-full items-baseline">
+                        <div class="flex items-baseline w-5/12 pr-3"><span
+                                class="data-label">ชื่อผู้ติดต่อกรณีฉุกเฉิน:</span><span id="print_emergencyName"
+                                class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                        <div class="flex items-baseline w-3/12 px-3"><span
+                                class="data-label">เกี่ยวข้องเป็น:</span><span id="print_emergencyRelation"
+                                class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                        <div class="flex items-baseline w-4/12 pl-3"><span class="data-label">เบอร์โทรศัพท์:</span><span
+                                id="print_emergencyPhone" class="data-field flex-grow adjustable-font">&nbsp;</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="flex w-full items-baseline">
+                        <div class="flex items-baseline w-full"><span class="data-label">อาการที่จะตรวจ:</span><span
+                                id="print_symptoms" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    </div>
+                    <div class="flex w-full mt-2 items-baseline">
+                        <div class="flex items-baseline w-2/12 pr-3"><span class="data-label">หมู่เลือด:</span><span
+                                id="print_bloodType" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                        <div class="flex items-baseline w-10/12 pl-3"><span class="data-label">การแพ้ยา:</span><span
+                                id="print_allergies" class="data-field flex-grow adjustable-font">&nbsp;</span></div>
+                    </div>
+                    <div class="flex w-full mt-2 items-baseline">
+                        <div class="flex items-baseline w-full"><span class="data-label">โรคประจำตัว:</span><span
+                                id="print_chronicDisease" class="data-field flex-grow adjustable-font">&nbsp;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable OPD Card -->
+    <div id="print-opd-container">
+        <div class="a5-landscape-container">
+            <!-- Header -->
+            <header class="flex justify-between items-start mb-3">
+                <div>
+                    <h1 class="text-lg font-bold">ฟู ซิน ไฉ คลินิก</h1>
+                    <p class="text-xs">79/47 ปากทางเข้าหมู่บ้านพรธิสาร 5 คลอง 7</p>
+                    <p class="text-xs">ต.ลำผักกูด อ.ธัญบุรี จ.ปทุมธานี 12110</p>
+                    <p class="text-xs">โทร. 062-826-1696</p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="flex items-baseline">
+                        <span class="data-label text-lg font-bold">HN</span>
+                        <span id="print_opd_hn_id" class="data-field text-left pl-2 text-lg font-bold"
+                            style="width: 198px;">&nbsp;</span>
+                    </div>
+                    <div class="flex items-baseline mt-1">
+                        <span class="data-label">วันที่:</span>
+                        <span id="print_opd_recordDate" class="data-field text-center"
+                            style="width: 90px;">&nbsp;</span>
+                        <span class="data-label ml-4">ครั้งที่:</span>
+                        <span id="print_opd_visitCount" class="data-field text-center"
+                            style="width: 50px;">&nbsp;</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Patient Info -->
+            <div class="space-y-1 text-sm">
+                <!-- Row 1: Patient Name, Nickname, Gender -->
+                <div class="flex items-baseline">
+                    <div class="flex items-baseline w-6/12 pr-2"><span class="data-label">ชื่อผู้ป่วย:</span><span
+                            id="print_opd_patientName"
+                            class="data-field flex-grow text-left adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-3/12 px-2"><span class="data-label">ชื่อเล่น:</span><span
+                            id="print_opd_nickname"
+                            class="data-field flex-grow text-center adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-3/12 pl-2"><span class="data-label">เพศ:</span><span
+                            id="print_opd_gender" class="data-field flex-grow text-center adjustable-font">&nbsp;</span>
+                    </div>
+                </div>
+                <!-- Row 2: ID Card, Age, Phone -->
+                <div class="flex items-baseline">
+                    <div class="flex items-baseline w-5/12 pr-2"><span class="data-label">เลขบัตรประชาชน:</span><span
+                            id="print_opd_idCard" class="data-field flex-grow text-center adjustable-font">&nbsp;</span>
+                    </div>
+                    <div class="flex items-baseline w-3/12 px-2"><span class="data-label">อายุ:</span><span
+                            id="print_opd_age" class="data-field flex-grow text-center adjustable-font">&nbsp;</span>
+                    </div>
+                    <div class="flex items-baseline w-4/12 pl-2"><span class="data-label">โทร:</span><span
+                            id="print_opd_phone" class="data-field flex-grow text-center adjustable-font">&nbsp;</span>
+                    </div>
+                </div>
+                <!-- Row 3: Address -->
+                <div class="flex items-baseline">
+                    <div class="flex items-baseline w-full">
+                        <span class="data-label">ที่อยู่:</span>
+                        <div class="address-print-wrapper flex-grow">
+                            <span id="print_opd_address" class="text-left adjustable-font">&nbsp;</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Row 4: Medical History, Allergies -->
+                <div class="flex items-baseline">
+                    <div class="flex items-baseline w-1/2 pr-2"><span class="data-label">โรคประจำตัว:</span><span
+                            id="print_opd_chronicDisease"
+                            class="data-field flex-grow text-center adjustable-font">&nbsp;</span></div>
+                    <div class="flex items-baseline w-1/2 pl-2"><span class="data-label">แพ้ยา/อาหาร:</span><span
+                            id="print_opd_allergies"
+                            class="data-field flex-grow text-center adjustable-font">&nbsp;</span></div>
+                </div>
+                <!-- Row 5: Vitals -->
+                <div class="flex items-baseline">
+                    <div class="flex items-baseline pr-2"><span class="data-label">T:</span><span id="print_opd_temp"
+                            class="data-field text-center adjustable-font" style="min-width: 40px;">&nbsp;</span> °C
+                    </div>
+                    <div class="flex items-baseline px-2"><span class="data-label">P:</span><span id="print_opd_pulse"
+                            class="data-field text-center adjustable-font" style="min-width: 40px;">&nbsp;</span> /min
+                    </div>
+                    <div class="flex items-baseline px-2"><span class="data-label">BP:</span><span id="print_opd_bp"
+                            class="data-field text-center adjustable-font" style="min-width: 60px;">&nbsp;</span> mmHg
+                    </div>
+                    <div class="flex items-baseline px-2"><span class="data-label">น้ำหนัก:</span><span
+                            id="print_opd_weight" class="data-field text-center adjustable-font"
+                            style="min-width: 40px;">&nbsp;</span> kg</div>
+                    <div class="flex items-baseline pl-2"><span class="data-label">ส่วนสูง:</span><span
+                            id="print_opd_height" class="data-field text-center adjustable-font"
+                            style="min-width: 40px;">&nbsp;</span> cm</div>
+                </div>
+            </div>
+
+            <!-- Main Content (Complaint & Diagram) -->
+            <div class="flex mt-1 space-x-4">
+                <!-- Left Column -->
+                <div class="w-8/12 flex flex-col">
+                    <!-- Complaint (grows) -->
+                    <div class="flex-grow flex flex-col">
+                        <span class="data-label">อาการสำคัญ:</span>
+                        <div id="print_opd_chiefComplaint" class="data-field w-full flex-grow"
+                            style="text-align: left; white-space: normal;">&nbsp;</div>
+                    </div>
+                    <!-- Checkboxes (at bottom of left column) -->
+                    <div class="pt-2">
+                        <div id="print_opd_treatments_container" class="grid grid-cols-5 gap-x-2 gap-y-1">
+                            <!-- Checkboxes will be populated here by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="w-4/12 flex flex-col justify-between">
+                    <!-- Diagram (centered, takes most space) -->
+                    <div class="flex-grow flex items-center justify-center">
+                        <svg style="max-height: 250px;" xmlns="http://www.w3.org/2000/svg"
+                            xmlns:i="http://ns.adobe.com/AdobeIllustrator/10.0/" id="Layer_1" baseProfile="tiny"
+                            version="1.2" viewBox="0 0 1200 1200">
+                            <path
+                                d="M407.53,187.51c1.49,11.16,1.25,22.33-.46,33.49l-35.47,19.09c-31.37,9.77-61.18,19.53-71.68,43.86-13.74,31.81-10.57,40.43-4.78,73.91-2.6,17.68-1.25,55.49,1.27,74.75,1.9,14.5-7.94,28.64-10.18,49.21-2.24,20.48-1.46,56.45-2.03,91.69-.27,16.65-1.89,30.93-2.14,44.65.56,4.47,1.48,8.88,1.45,13.23-.07,8.88-2.36,15.57-3.88,22.75-2.1,9.85-5.12,18.7,1.24,32.02,1.46,4.07,4.27,7.08,6.88,10.4,2.08,2.64,3.48,5.71,5.57,8.33,5.96,4.52,7.17,5.52,12.52,7.51,3.69,1.37,7.56-1.64,10.24-1.24,16.91,2.51,10.84-14.66,10.09-26.5-.38-6.03.71-12.52.35-17.28-.66-8.67-1.88-11.26-3.3-14.87-2.15-5.45-5.53-8.95-7.42-11.26-2.3-2.81-3.36-6.17-4.89-10.28,1.92-22.49,3.74-42.6,6.93-59.12,10.63-55.1,22.91-87.63,21.28-127.3,8.01-29.62,7.13-50.61,9.46-79.89.23-2.93-.72-12.76.48,1.27,1.86,21.73,4.94,35.78,8.24,56.51.53,3.35,4.37,12.15,4.01,23.09-.34,10.36-7.94,27.97-11.47,45.15-2.48,12.06-.89,25.13-2.5,31.65-17.4,70.71-15.11,146.54-8.68,218.59,2.36,26.44,6.48,52.74,6.36,68.74-.03,4.47.69,35.82-.11,39.82-10.97,55.38,12.03,151.97,22.77,212.63-.76,11.55-4.86,16.78-6.8,22.35-3.93,11.29-3.73,17.32-14.31,31.1-18.97,24.7-7.88,35.71,12.76,39.67,14.22,2.72,29.01-3.03,32.75-12.55,2.82-7.17-2.94-19.93,4.32-24.61,11.47-7.39,9.9-9.18,8.73-17.03-.72-4.79-4.56-15.76-6.11-20.33-1.66-16.54-2.77-43.53-4.4-62.84-3.17-37.55,6.94-61.15,7.65-100.83.34-19.27-6.21-46.01-3.15-62.51,3.21-17.29,7.23-18.03,10.06-27.92,7.9-27.6,6.96-72.16,8.93-96.71,3.43-42.82,13.02-53.19,10-88.09l13.41,2.04c-7.23,36.19,6.83,61.04,13.59,101.81,2.79,16.83,2.66,34.8,3.81,52.61.3,4.68-1.08,18.18,1.8,31.17,6.24,28.2,10.84,20.05,8.7,47.62-5.85,75.47,24.94,139.64,18.08,200.91-.64,3.28-4.56,10.92-6.56,19.33-2.84,11.93-3.13,24.96,2.33,26.9,22.3,7.92,12.91,29.73,31.36,34.77,27.45,7.5,52.91,4.03,44.46-10.95-2.94-3.12-6-6.27-8.77-9.68-4.67-5.75-7.69-13.42-13.33-20.91-4.03-5.35-8.93-9.59-12.53-16.08-2.93-5.27-2.38-10.09-3.59-15.16-.98-4.07.73-55.64,1.22-61.84,3.4-43.15,10.67-99.01,10.23-127.87-.28-18.41-7.19-40.56-8.01-65.68.8-10.56,1.17-21.36,2.47-30.13,1.57-10.6-.38-26.02,1.04-34.5,7.27-43.42,8.16-70.53,9.25-111.52.65-24.36-9.92-81.46-14.98-125.05-1.57-13.49,1.87-38.14-3.36-49.03-2.18-4.54-6.67-18.6-5.08-34.3,1.59-15.6,9.23-31.12,13.29-44.57,2.73-9.02,3.18-17.82,3.82-22.12,2.27-15.36,5.76-15.9,4.04-23.81-.43-1.98-1.6-4.67-1.59-4.98.02-1.21,1.78,3.01,1.84,3.34.05.31.13,1.08.28,2.31,1.59,13.15-1.54,17.56.81,36.89,2.42,20,11.16,41.9,14.58,61.01-2.51,28.65,1.43,57.82,5.55,87.94,2.57,18.8,6.65,37.66,6.35,57.55-.13,8.42.58,17.95-.45,22.19-1.46,6.02-8.28,8.46-9.18,11.73-2.57,9.29-4.2,4.46-6.55,16.74-.79,5.26-.95,11.62-2.12,17.91-.85,4.57-.51,9.74-1.39,14.07-1.36,6.67-1.96,12.26-.95,13.39,3.29,4.35,6.56,4.79,12.84,3.02-1.42,1.48-5.24,3.22-7.88,5.14-1.11.81-3.14,3.33-2.95,4.74.43,3.17,8.27,4.36,11.93,3.75.87-.14,2.13-.83,3.31-1.08,3.6-.76,5.25-.2,6.83-1,2.01-1.01,3.8-3.89,5.47-5.9,3.92-4.72,6.05-2.47,7.39-3.57,3.84-3.16,4.67-10.44,6.11-12.7,2.87-4.51,4.45-9.38,6.31-14.25-.61-21.96-4.31-31.4-2.37-48.7,5.34-40.48,12.36-78.44,9.42-119.72-1.3-18.25-6.01-36.49-9.47-57.16l.41-6.86c2.19-12.02,4.5-34.44,3.64-54.14-.64-14.66-4.69-29.3-5.28-37.1-.94-12.32,3.46-25.22,2.53-33.26-2.63-22.76-13.95-39.07-27.89-51.96-13.62-12.59-32.95-17.97-45.04-19.97l-43.68-23.92c-1.99-11.1-2.53-22.09-1.58-32.94l-64.48-.75h0Z"
+                                fill="#fff" fill-rule="evenodd" />
+                            <path
+                                d="M407.53,187.51c1.49,11.16,1.25,22.33-.46,33.49l-35.47,19.09c-31.37,9.77-61.18,19.53-71.68,43.86-13.74,31.81-10.57,40.43-4.78,73.91-2.6,17.68-1.25,55.49,1.27,74.75,1.9,14.5-7.94,28.64-10.18,49.21-2.24,20.48-1.46,56.45-2.03,91.69-.27,16.65-1.89,30.93-2.14,44.65.56,4.47,1.48,8.88,1.45,13.23-.07,8.88-2.36,15.57-3.88,22.75-2.1,9.85-5.12,18.7,1.24,32.02,1.46,4.07,4.27,7.08,6.88,10.4,2.08,2.64,3.48,5.71,5.57,8.33,5.96,4.52,7.17,5.52,12.52,7.51,3.69,1.37,7.56-1.64,10.24-1.24,16.91,2.51,10.84-14.66,10.09-26.5-.38-6.03.71-12.52.35-17.28-.66-8.67-1.88-11.26-3.3-14.87-2.15-5.45-5.53-8.95-7.42-11.26-2.3-2.81-3.36-6.17-4.89-10.28,1.92-22.49,3.74-42.6,6.93-59.12,10.63-55.1,22.91-87.63,21.28-127.3,8.01-29.62,7.13-50.61,9.46-79.89.23-2.93-.72-12.76.48,1.27,1.86,21.73,4.94,35.78,8.24,56.51.53,3.35,4.37,12.15,4.01,23.09-.34,10.36-7.94,27.97-11.47,45.15-2.48,12.06-.89,25.13-2.5,31.65-17.4,70.71-15.11,146.54-8.68,218.59,2.36,26.44,6.48,52.74,6.36,68.74-.03,4.47.69,35.82-.11,39.82-10.97,55.38,12.03,151.97,22.77,212.63-.76,11.55-4.86,16.78-6.8,22.35-3.93,11.29-3.73,17.32-14.31,31.1-18.97,24.7-7.88,35.71,12.76,39.67,14.22,2.72,29.01-3.03,32.75-12.55,2.82-7.17-2.94-19.93,4.32-24.61,11.47-7.39,9.9-9.18,8.73-17.03-.72-4.79-4.56-15.76-6.11-20.33-1.66-16.54-2.77-43.53-4.4-62.84-3.17-37.55,6.94-61.15,7.65-100.83.34-19.27-6.21-46.01-3.15-62.51,3.21-17.29,7.23-18.03,10.06-27.92,7.9-27.6,6.96-72.16,8.93-96.71,3.43-42.82,13.02-53.19,10-88.09l13.41,2.04c-7.23,36.19,6.83,61.04,13.59,101.81,2.79,16.83,2.66,34.8,3.81,52.61.3,4.68-1.08,18.18,1.8,31.17,6.24,28.2,10.84,20.05,8.7,47.62-5.85,75.47,24.94,139.64,18.08,200.91-.64,3.28-4.56,10.92-6.56,19.33-2.84,11.93-3.13,24.96,2.33,26.9,22.3,7.92,12.91,29.73,31.36,34.77,27.45,7.5,52.91,4.03,44.46-10.95-2.94-3.12-6-6.27-8.77-9.68-4.67-5.75-7.69-13.42-13.33-20.91-4.03-5.35-8.93-9.59-12.53-16.08-2.93-5.27-2.38-10.09-3.59-15.16-.98-4.07.73-55.64,1.22-61.84,3.4-43.15,10.67-99.01,10.23-127.87-.28-18.41-7.19-40.56-8.01-65.68.8-10.56,1.17-21.36,2.47-30.13,1.57-10.6-.38-26.02,1.04-34.5,7.27-43.42,8.16-70.53,9.25-111.52.65-24.36-9.92-81.46-14.98-125.05-1.57-13.49,1.87-38.14-3.36-49.03-2.18-4.54-6.67-18.6-5.08-34.3,1.59-15.6,9.23-31.12,13.29-44.57,2.73-9.02,3.18-17.82,3.82-22.12,2.27-15.36,5.76-15.9,4.04-23.81-.43-1.98-1.6-4.67-1.59-4.98.02-1.21,1.78,3.01,1.84,3.34.05.31.13,1.08.28,2.31,1.59,13.15-1.54,17.56.81,36.89,2.42,20,11.16,41.9,14.58,61.01-2.51,28.65,1.43,57.82,5.55,87.94,2.57,18.8,6.65,37.66,6.35,57.55-.13,8.42.58,17.95-.45,22.19-1.46,6.02-8.28,8.46-9.18,11.73-2.57,9.29-4.2,4.46-6.55,16.74-.79,5.26-.95,11.62-2.12,17.91-.85,4.57-.51,9.74-1.39,14.07-1.36,6.67-1.96,12.26-.95,13.39,3.29,4.35,6.56,4.79,12.84,3.02-1.42,1.48-5.24,3.22-7.88,5.14-1.11.81-3.14,3.33-2.95,4.74.43,3.17,8.27,4.36,11.93,3.75.87-.14,2.13-.83,3.31-1.08,3.6-.76,5.25-.2,6.83-1,2.01-1.01,3.8-3.89,5.47-5.9,3.92-4.72,6.05-2.47,7.39-3.57,3.84-3.16,4.67-10.44,6.11-12.7,2.87-4.51,4.45-9.38,6.31-14.25-.61-21.96-4.31-31.4-2.37-48.7,5.34-40.48,12.36-78.44,9.42-119.72-1.3-18.25-6.01-36.49-9.47-57.16l.41-6.86c2.19-12.02,4.5-34.44,3.64-54.14-.64-14.66-4.69-29.3-5.28-37.1-.94-12.32,3.46-25.22,2.53-33.26-2.63-22.76-13.95-39.07-27.89-51.96-13.62-12.59-32.95-17.97-45.04-19.97l-43.68-23.92c-1.99-11.1-2.53-22.09-1.58-32.94l-64.48-.75h0Z"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="2.35" />
+                            <path
+                                d="M439.48,58.2c14.98,0,33.78,8.44,41.88,21.86,8.04,13.33,5.6,31.57,5.54,48.64,0,.22-.17.76,0,.64,9.52-6.83,5.73,22.12-2.97,26.45-.19.09-.54.52-.6.73-3.05,11.41-1.06,23.37-5.83,28.67-9.55,10.6-22.42,22.44-36.85,22.48-13,.03-29.98-12.89-37.81-22.3-4.2-5.05-1.69-17.52-6.2-27.76-.14-.33-.3-.66-.45-.98-.21-.44-.66.86-1.56.87-1.16.02-3.42-2.01-3.81-3.17-5.58-16.63-6.54-33.85,3.8-25.46.27.22,0-.69,0-1.04-.12-15.2-2.69-33.03,3.17-45.48,7.38-15.66,25.13-24.15,41.7-24.15h0Z"
+                                fill="#fff" fill-rule="evenodd" />
+                            <path
+                                d="M439.48,58.2c14.98,0,33.78,8.44,41.88,21.86,8.04,13.33,5.6,31.57,5.54,48.64,0,.22-.17.76,0,.64,9.52-6.83,5.73,22.12-2.97,26.45-.19.09-.54.52-.6.73-3.05,11.41-1.06,23.37-5.83,28.67-9.55,10.6-22.42,22.44-36.85,22.48-13,.03-29.98-12.89-37.81-22.3-4.2-5.05-1.69-17.52-6.2-27.76-.14-.33-.3-.66-.45-.98-.21-.44-.66.86-1.56.87-1.16.02-3.42-2.01-3.81-3.17-5.58-16.63-6.54-33.85,3.8-25.46.27.22,0-.69,0-1.04-.12-15.2-2.69-33.03,3.17-45.48,7.38-15.66,25.13-24.15,41.7-24.15h0ZM327.32,332.91c15.08-2.66,7.11,49.13,89.4,36.71,4.92-.75,15.87-4.04,15.36-10.82M545.45,335.06c-14.55-2.67-6.86,49.13-86.28,36.71-4.75-.75-15.32-4.04-14.83-10.82"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="2.35" />
+                            <path
+                                d="M332.18,254.43c9.43.08,79.69,1.64,82.74,6.47M433.06,482.56c.48-1.22,5.05-4.98,2.63,3.91-.27,1.01-.7,4.11-.23,5.15"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="1.88" />
+                            <path
+                                d="M487.03,128.1c-5.24,15.03-.03,21.59-7.02,31.49M394.69,128.41c2.53,19.97-1.65,26.3,8.78,35.37"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="2.35" />
+                            <path
+                                d="M354.31,856.86c10.3,14.92,34.08,2.95,34.08.64M360.04,817.37c8.43,0,16.84-.8,21.98,7.01M386.47,832.34c0,3.56-3.72,18.17-3.82,18.15M360.36,834.88c.68,3.02-.96,6.92-.96,11.78M513.23,854.31c-10.3,14.92-34.08,2.95-34.08.64M507.5,814.82c-8.43,0-16.84-.8-21.98,7.01M481.07,829.79c0,3.56,3.72,18.17,3.82,18.15M507.18,832.34c-.68,3.02.95,6.92.95,11.78M494.12,394.25c0,50.8-19.23,48.64-21.34,54.78M373.1,389.47c0,22.42,14.74,50.27,38.22,54.78M435.2,393.62c3.68,12.55,1.86,55.25,1.71,55.09l-1.39-1.9M479.15,461.77c-2.79,12.36-9.81,19.99-19.11,27.39M400.81,458.27c3.15,5.13,7.31,22.61,15.61,24.52M352.1,504.84c-6.73,4.78,12.25,16.85,15.26,18.72M521.75,499.33c-11.44,18.85.92,13.61-24.62,27.21l-.45.53M579.12,679.16c-.47,3.05-12.62,28.23-16.47,31.82M560.18,661.46c3.1,9.13-7.03,8.55-7.95,32.02-.02.47.05,2.41-1.1,3.55-1.36,1.35-5.12,1.33-5.16,1.37M562.05,668.3c1.38,6.11,5.79,5.56.94,16.65-2.2,5.02-3.11,11.01-8.19,13.92,0,.01-.38-.99.48-.48M580.84,665.52c1.76,2.27,1.13,4.6-.56,6.45M586.1,668.38c1,1.73.54,2.85,0,4.22M590.64,670.45c.25.89.07,3.23-1.11,3.34M584.75,681.76c.4.51-2.58,13.72-3.13,15.55M542.91,695.69c1.7-4.34-1.57-10.18,7.38-5.68.55.28,2.36,9.37-2.65,7.25-.08-.04-4.85-1.49-5.01-1.53M545.48,710.27c3.05-3.23,9.87-3.72,11.13,1.94.06.27.06.22.24.46M543.25,252.88c-9.43.07-79.69,1.64-82.74,6.47M432.68,257.89c-1.61,3.61,6.48,4.47,9.55.31M408.14,211.84c.08.13-.3,24.65-.78,27.74M471.94,208.42c2.11,5.64-1.45,25.24-1.04,30.36M323.08,709.5c-3.82,2.37-9.44-10.2-7.63-17.85,1.63-6.88-4.89-12.65-4.1-17.69-2.73-3.13-4.6,12.44-2.15,20.37.61,1.96,3.52,4.12,5.44,4.82M313.57,711.47c-7.85-.47-22.5-21.3-22.5-27.63,0-.92-.32-4.09-.32-4.11M282.95,682.27c.14,4.4,6.38,15.72,5.68,15.47l-.87-1.18M319.71,708.48c.16-2.26-1.04-2.39.2-4.93-.82-1.36,8.32-2.82,6.43,5.07-.28,1.18-6.62-.18-6.62-.14h0ZM291.01,665.67c-1.76,2.27-1.13,4.6.56,6.45M285.75,668.54c-1,1.73-.54,2.85,0,4.22M281.21,670.6c-.25.89-.07,3.23,1.12,3.34"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="1.88" />
+                            <path
+                                d="M815.47,190.74c-1.52,11.35-1.16,21.64.59,32.98l36.05,19.4c31.88,9.93,62.18,19.85,72.86,44.58,13.96,32.33,10.74,41.1,4.86,75.13,2.65,17.97,1.27,56.4-1.29,75.97-1.93,14.74,8.07,29.11,10.35,50.02,2.27,20.82,1.48,57.38,2.06,93.2.27,16.92,1.92,31.44,2.17,45.38-.56,4.55-1.51,9.03-1.47,13.45.07,9.03,2.4,15.83,3.95,23.13,2.13,10.01,5.2,19-1.26,32.55-1.48,4.13-4.34,7.2-7,10.57-2.11,2.68-3.54,5.8-5.66,8.47-6.06,4.59-7.29,5.61-12.73,7.63-3.75,1.39-7.68-1.66-10.41-1.26-.24.04-5.38-.73-4.32-2.93.96-2.01,2.11-5.81,4.77-9.07,1.39-1.7,3.87-1.75,5.36-3.34,1.35-1.45,1.77-4.44,2.07-6.1,1.4-7.69-1.54-16.66-1.96-16.67-.3,0-3.82,6.02-5.16,13.09-.81,4.28.87,8.8-.31,13.02-1.86,6.64-5.6,12.11-5.86,12.06-10.3-1.85-5.51-16.47-4.84-27.01.39-6.12-.73-12.72-.36-17.57.67-8.81,1.91-11.44,3.36-15.11,2.19-5.54,5.62-9.1,7.54-11.45,2.33-2.85,3.41-6.27,4.97-10.45-1.95-22.86-3.8-43.3-7.04-60.09-10.81-56.01-23.29-89.07-21.63-129.39-7.46-29.61-5.73-50.65-7.84-79.9-.13-1.78,6.49-21.45,6.51-24.07,0-.78-7.15,18.92-7.65,26.64-1.36,21.19-6.15,33.78-9.51,54.86-.54,3.4-4.44,12.35-4.08,23.47.34,10.53,8.07,28.43,11.66,45.89,2.52,12.26.91,25.54,2.54,32.17,17.69,71.87,15.36,148.95,8.83,222.18-2.4,26.88-6.58,53.6-6.46,69.87.04,4.54-.7,36.41.11,40.48,5.36,27.08,5.51,76.86-.07,123.05-3.81,31.53-11.58,61.7-15,84.22-2.63,17.34-2.71,30.26-1.21,34.45,3.16,8.85-.21.77.58-1.48.92-2.64,27.21,3,26.88,14.75-.11,3.9,1.91,9.99,0,13.15-2.72,4.51-11.91,6.4-17.51,10.87-6.11,4.88-9.22,10.62-16.13,13.91-10.84,5.17-23.08,9.91-34.79-.06-7.79-6.64-3.32-16.6-.91-27.35,1.74-7.78,3.96-20.3,5.93-28.96.7-8.53,1.09-19.4,1.24-30.87.62-47.39-7.8-93.63-9.42-135.12-.75-19.22,4.9-45.82,1.9-62.36-3.25-17.92-7.83-18.59-9.43-29.1-5.05-33.11-2.07-68.96-6.47-100.65-6.01-43.25-13.42-53.62-10.47-88.79l-5.06-5.82-8.56,7.36c7.46,36.71-6.64,61.84-13.52,103.28-2.84,17.1-2.7,35.37-3.87,53.48-.31,4.75,1.1,18.48-1.82,31.69-6.34,28.66-11.02,20.38-8.84,48.4,4.89,63.12-15.85,120.82-16.98,173.82-.22,10.24,3.2,20.99,4.56,31.59,1.41,10.97-1.51,20.91-.89,31.08.77,12.65,5.92,21.71,2.89,28.74-5.5,12.77-22.83,9.24-34.48,5.89-3.84-1.1-7.72-9.64-15.14-19.67-3.33-4.5-9.53-6.17-13.29-12.55-1.4-2.37-1.98-8.66-1.36-10.54,1.7-5.18,10.76-12.99,20.63-14.41.41-.06,2.19-1.36,2.79-.7,1.25,1.37-.26,6.29.14,4.45.34-1.58,3.82-12.66,4.02-25.87.4-26.52-7.64-60.87-12.61-93.38-4.03-26.38-4.6-53.15-4.22-78.72.28-18.71,7.3-41.23,8.14-66.76-.81-10.73-1.19-21.71-2.51-30.63-1.6-10.78.39-26.45-1.06-35.07-7.39-44.13-8.3-71.69-9.4-113.35-.66-24.76,10.08-82.8,15.22-127.11,1.59-13.71-1.9-38.77,3.42-49.84,2.22-4.62,6.79-18.91,5.16-34.87-1.61-15.85-9.38-31.63-13.51-45.3-2.77-9.17-3.23-18.12-3.88-22.48-2.31-15.61-5.85-16.16-4.11-24.2.44-2.01-6.94-9.82-6.4-10.08,1.64-.78,5.93,10.35,5.86,10.75-.05.3.04,1.8.09,3.84.79,5.02,2.73,8.16,3.06,11.88.45,4.94-2.54,10-3.97,21.77-2.46,20.32-11.35,42.59-14.82,62.01,2.55,29.12-1.46,58.77-5.64,89.39-2.61,19.1-6.76,38.28-6.45,58.5.13,8.56-.59,18.24.46,22.55,1.17,4.85,13.23,14.51,15.99,28.94.8,5.35.97,11.81,2.16,18.2.87,4.64.52,9.9,1.42,14.3,1.38,6.79,1.99,12.47.97,13.61-1.05,1.39-2.1,2.39-3.25,3.05-.4.23-3.98.09-5.92-4.42-1.75-4.06-1.88-9.98-3.46-15.19-2.13-7.02-5.53-12.93-6.14-12.94-.73,0-5.31,6.97-3.7,14.37,1.92,8.8,10.61,18.54,9.42,18.2,1.45,1.5,5.32,3.27,8.01,5.22,1.13.82,3.19,3.39,3,4.82-.43,3.22-8.41,4.43-12.13,3.81-.88-.15-2.16-.84-3.37-1.09-3.66-.77-5.34-.21-6.94-1.01-2.05-1.03-3.86-3.95-5.56-6-3.99-4.8-6.15-2.51-7.51-3.63-3.9-3.21-4.74-10.61-6.21-12.91-2.92-4.58-4.53-9.53-6.42-14.48.62-22.33,4.38-31.91,2.4-49.5-5.42-41.15-12.56-79.73-9.57-121.68,1.32-18.55,6.11-37.09,9.63-58.1l-.42-6.97c-2.23-12.22-4.57-35.01-3.69-55.03.65-14.89,4.76-29.78,5.37-37.71.96-12.52-3.51-25.64-2.57-33.81,2.68-23.13,14.18-39.71,28.35-52.81,13.84-12.8,33.49-18.27,45.78-20.3l44.4-24.31c2.03-11.28,2.71-20.71,1.75-31.75.76-3.03-4.7-3.14-7.35-9.74-2.63-6.55-2.59-21.33-4.45-26.52-.49-1.36-2.02-.77-2.9-1.6-1.56-1.45-2.66-4.05-3.59-6.07-2.31-5.06-3.17-12.2-3.11-16.83.01-.91,1.66-3.26,2.98-3.66,1.33-.4,3.31,1.09,3.29-.03-.39-18.75-.64-28.71,2.15-39.87,4.98-19.93,27.5-27.26,45.79-28.56,40.47,4.87,45.63,31.16,44.63,59.05-.12,3.36-1.57,9.24.07,10.04,1.24.6,3.17-2.42,5.53-1.54,3.76,1.4,2.35,8.54,1.62,12.09-.84,4.11-2.22,13.01-4.59,16.5-.89,1.31-1.62,1.99-2.63,1.82-.52-.09-1.09-2.22-1.85-.83-3.74,6.83-3.33,15.99-4.19,21.57-1.38,8.97-.96,4.34-6.12,12.73h0Z"
+                                fill="#fff" fill-rule="evenodd" stroke="#231f20" stroke-miterlimit="22.93"
+                                stroke-width="1.91" />
+                            <path
+                                d="M660.36,660.07c-5.42,9.38-.66,15.22-.17,16.79M900.84,721.12c4.01,2.23,10.19-11.25,8.35-19.02-1.65-6.99,4.98-12.86,4.17-17.98,2.78-3.18,4.68,12.64,2.19,20.7-.62,1.99-4.32,4.34-6.56,5.12"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="1.91" />
+                            <path
+                                d="M871.12,626.7c-1.63,30.71-70.85,42.81-82.51,18.38-8.65,23.86-92.98,15.65-81.11-17.38"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="2.39" />
+                            <path
+                                d="M702.39,1102.74c1.54,1.69.79,9.24.79,11.74M863.75,1102.99c-.32,12.87,5.23,3.52-3.88,17.8M837.69,1135.52c1.29-.82,3.78-43.88,5.18-49.53M716.29,1080.82c-.17.51,3.25,19.28-1.54,33.13-.96,2.78.56,6.16,1.86,6.36M706.92,850.74c16.91,0,15.19-2.9,34.48-.32M873.46,849.68c-6.9,0-36.39-5.19-41.44,3.56M744.68,290.83c0,21.42-32.74,43.35-52.12,44.35M816.61,295.82c2.41,11.79,28.08,48.03,49.53,45M779.42,273.62c-2.59,71.33,8.51,157.24,5.83,231.13M816.65,523.86c11.24-5.08,7.12-35,7.12-45.97M767.42,523.2c-11.24-5.08-7.12-35-7.12-45.97M921.05,662.55c3.84,14.63-4.7,17.06-7.69,21.56M936.88,707.69c-.08.03-22.01,1.19-4.44-7.56,4.81-2.39,6.41-10.49,6.41-15.24M930.03,716.13c-4.5,4.65-16.53,1.26-8.07-2.75,1.99-.94,6.49-3.88,5.71-6.28M911.1,722.24c-.48-3.37-1.52-7.86,4.29-8.06,5.61-.19,10.6-20.91,10.6-25.32M932.3,690.8c-.35,1.4-2.88,10.29-3.4,10.76M924.77,656.32c6.1,13.15,4.67,8.51,15.88,16.46.26.18.17.16.47.21M935.05,675.99c-3.43,2.64-9.1,9.15-14.24,8.5M648.16,659.15c-2.98,5.43-7.27,14.15-14.08,16.51M636.99,687.8c-3.38,4.15,2.29-.38,12.46-2.27M641.4,711.55c4.39-1.43,20.22-.5,7.62-7.28-.78-.42-2.78.24-4.85-.45-4.72-1.59-1.62-6.21-1.18-7.43M654.47,721.18c.22-.08,11.32-1.32,6.18-3.8-7.73-3.73-10.23-21.29-10.35-20.27M670.74,722.68c2.97-1.94-.21-6.85-5.06-8.67-6.09-2.28-9.42-11.64-9.42-17.31"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="1.91" />
+                            <path
+                                d="M788.37,194.13c.31-1.94-7.08-5.99-13.47-.5M735.06,127.72l3.33,28.19M826.96,126.78l-2.75,33.3"
+                                fill="none" stroke="#231f20" stroke-miterlimit="22.93" stroke-width="1.92" />
+                        </svg>
+                    </div>
+                    <!-- Signature (at bottom of right column) -->
+                    <div class="flex-shrink-0 text-center pt-2">
+                        <div id="print_opd_practitioner" class="data-field mx-auto" style="min-width: 150px;">&nbsp;
+                        </div>
+                        <p id="print_opd_practitioner_title" class="text-sm">(ลงชื่อแพทย์ผู้ตรวจ)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="mt-auto pt-2" style="display: none;">
+                <div class="flex justify-between items-end">
+                    <div class="w-8/12">
+                        <div class="flex flex-wrap gap-x-4">
+                            <!-- Checkboxes for row 1 will be inserted here -->
+                        </div>
+                        <div class="flex flex-wrap gap-x-4 mt-1">
+                            <!-- Checkboxes for row 2 will be inserted here -->
+                        </div>
+                    </div>
+                    <div class="w-4/12 text-right flex-shrink-0 pl-4">
+                        <div class="inline-block text-center">
+                            <p class="text-sm">ลงชื่อแพทย์ผู้ตรวจ</p>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
+
+    <script>
+        // --- DOM Elements ---
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobileMenuButton');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const mainContentArea = document.getElementById('mainContentArea');
+        const mainPageHeader = document.getElementById('mainPageHeader');
+        const patientSearchContainer = document.getElementById('patientSearchContainer');
+
+        const patientTableBody = document.getElementById('patientTableBody');
+        const patientTableLoadingIndicator = document.getElementById('patientTableLoadingIndicator');
+        const noMorePatientDataIndicator = document.getElementById('noMorePatientDataIndicator');
+        const noPatientDataFoundMessage = document.getElementById('noPatientDataFoundMessage');
+
+        const patientSearchInputOnPage = document.getElementById('patientSearchInputOnPage');
+
+        const patientModal = document.getElementById('patientModal');
+        const openPatientModalButton = document.getElementById('openPatientModalButton');
+        const closePatientModalButton = document.getElementById('closePatientModalButton');
+        const patientModalMainTitle = document.getElementById('patientModalMainTitle');
+        const patientFormTitle = document.getElementById('patientFormTitle');
+        const patientDetailsFormSection = document.getElementById('patientDetailsFormSection');
+        const patientForm = document.getElementById('patientForm');
+        const savePatientButton = document.getElementById('savePatientButton');
+        const cancelPatientFormButton = document.getElementById('cancelPatientFormButton');
+        const patientRecordIdInput = document.getElementById('patientRecordId');
+
+        const treatmentHistoryDisplaySection = document.getElementById('treatmentHistoryDisplaySection');
+        const historyPatientNameDisplay = document.getElementById('historyPatientNameDisplay');
+        const historyTreatmentCountDisplay = document.getElementById('historyTreatmentCountDisplay');
+        const treatmentHistoryTableBodyDisplay = document.getElementById('treatmentHistoryTableBodyDisplay');
+        const noTreatmentHistoryMessageDisplay = document.getElementById('noTreatmentHistoryMessageDisplay');
+
+        const toggleAddTreatmentFormButton = document.getElementById('toggleAddTreatmentFormButton');
+        const addTreatmentSection = document.getElementById('addTreatmentSection');
+        const addTreatmentFormHeader = document.getElementById('addTreatmentFormHeader');
+        const addTreatmentForm = document.getElementById('addTreatmentForm');
+        const treatmentPatientIdCardInput = document.getElementById('treatmentPatientIdCard');
+        const treatmentDateTimeField = document.getElementById('treatmentDateTime');
+        const treatmentPractitionerField = document.getElementById('treatmentPractitioner');
+        const treatmentGivenContainer = document.getElementById('treatmentGivenContainer');
+        const addTreatmentItemButton = document.getElementById('addTreatmentItemButton');
+        const saveTreatmentButton = document.getElementById('saveTreatmentButton');
+        const cancelAddTreatmentButton = document.getElementById('cancelAddTreatmentButton');
+
+        const customAlertBox = document.getElementById('customAlertBox');
+        const customAlertMessage = document.getElementById('customAlertMessage');
+        const customAlertCloseButton = document.getElementById('customAlertCloseButton');
+
+        const userProfileButton = document.getElementById('userProfileButton');
+        const userProfileDropdown = document.getElementById('userProfileDropdown');
+
+        const ITEMS_PER_PAGE = 10;
+        let currentPage = 0;
+        let isLoadingData = false;
+        let currentFilteredPatientData = [];
+        let patientModalControls;
+        let lastFocusedElement = null;
+        let treatmentHistorySort = { key: 'dateTime', direction: 'desc' };
+
+        const SIDEBAR_EXPANDED_WIDTH_PX = 224;
+        const SIDEBAR_COLLAPSED_WIDTH_PX = 80;
+
+        const allMockPatients = [
+            { hn: 'HN 68-0001', idCardNumber: '1234567890123', title: 'นาย', firstName: 'สมชาย', lastName: 'ใจดี', phoneNumber: ['081-234-5678'], registrationDate: '10/01/2568', treatmentCount: 2, dob: '1980-05-15', nickname: 'ชาย', gender: 'ชาย', nationality: 'ไทย', race: 'ไทย', religion: 'พุทธ', occupation: 'พนักงานบริษัท', address_number: '123', address_moo: '', address_road: 'สุขุมวิท', address_subdistrict: 'คลองเตย', address_district: 'คลองเตย', address_province: 'กรุงเทพมหานคร', address_zipcode: '10110', emergency_contact_name: 'สมศรี ใจดี', emergency_contact_relation: 'ภรรยา', emergency_contact_phone: '089-876-5432', emergency_contact_address: 'ที่อยู่เดียวกับผู้ป่วย', bloodGroup: 'O', chiefComplaint: 'ปวดหลังเรื้อรัง', allergies: 'ไม่มี', medicalHistory: 'ความดันโลหิตสูง', premiumExpiryDate: '2026-12-31' },
+            { hn: 'HN 68-0002', idCardNumber: '9876543210987', title: 'นางสาว', firstName: 'สมศรี', lastName: 'รักสุขภาพ', phoneNumber: ['082-345-6789'], registrationDate: '15/02/2568', treatmentCount: 1, dob: '1992-10-20', nickname: 'ศรี', gender: 'หญิง', nationality: 'ไทย', race: 'ไทย', religion: 'พุทธ', occupation: 'ฟรีแลนซ์', address_number: '45/6', address_moo: '7', address_road: 'ลาดพร้าว', address_subdistrict: 'วังทองหลาง', address_district: 'วังทองหลาง', address_province: 'กรุงเทพมหานคร', address_zipcode: '10310', emergency_contact_name: '', emergency_contact_relation: '', emergency_contact_phone: '', emergency_contact_address: '', bloodGroup: 'A', chiefComplaint: 'ปวดหัวไมเกรน', allergies: 'แพ้กุ้ง', medicalHistory: 'ไม่มี', premiumExpiryDate: null },
+            { hn: 'HN 68-0003', idCardNumber: '1122334455667', title: 'นาย', firstName: 'วิชัย', lastName: 'มีทรัพย์', phoneNumber: ['093-456-7890'], registrationDate: '01/03/2568', treatmentCount: 0, dob: '1975-03-10', nickname: 'ชัย', gender: 'ชาย', nationality: 'ไทย', race: 'ไทย', religion: 'พุทธ', occupation: 'ธุรกิจส่วนตัว', address_number: '', address_moo: '', address_road: '', address_subdistrict: '', address_district: '', address_province: '', address_zipcode: '', emergency_contact_name: '', emergency_contact_relation: '', emergency_contact_phone: '', emergency_contact_address: '', bloodGroup: 'B', chiefComplaint: 'นอนไม่หลับ', allergies: 'ไม่มี', medicalHistory: 'เบาหวาน', premiumExpiryDate: '2025-01-15' },
+        ];
+        const mockTreatmentHistories = {
+            "HN 68-0001": [
+                { dateTime: "10/05/2568 10:30", temp: "37.1", pulse: "78", bp: "125/80", weight: "70.5", height: "175", symptoms: "ปวดหลังส่วนล่าง, นอนไม่หลับ", diagnosisTCM: "ชี่ตับติดขัด, ไตอ่อนแอ", treatmentGiven: ["ฝังเข็ม", "ยาจีน", "มังกรไฟ"], practitioner: "หมอสมชาย", notes: "อาการดีขึ้นเล็กน้อย" },
+                { dateTime: "01/04/2568 14:00", temp: "36.8", pulse: "75", bp: "120/80", weight: "71", height: "175", symptoms: "ปวดหลัง", diagnosisTCM: "ลมเย็นกระทบเส้นลมปราณ", treatmentGiven: ["ครอบแก้ว"], practitioner: "หมอสมชาย", notes: "หลังทำรู้สึกโล่ง" }
+            ],
+            "HN 68-0002": [
+                { dateTime: "15/05/2568 11:00", temp: "36.5", pulse: "82", bp: "110/70", weight: "55", height: "160", symptoms: "ปวดหัวไมเกรน", diagnosisTCM: "ลมความร้อนกระทบส่วนบน", treatmentGiven: ["ฝังเข็ม", "กัวซา"], practitioner: "หมอสมหญิง", notes: "อาการทุเลาลง" }
+            ],
+            "HN 68-0003": [],
+        };
+
+        allMockPatients.forEach(patient => {
+            const history = mockTreatmentHistories[patient.hn];
+            if (history && history.length > 0) {
+                const sortedHistory = [...history].sort((a, b) => {
+                    const parseDateTime = (dtStr) => {
+                        const [datePart, timePart] = dtStr.split(' ');
+                        const [day, month, year] = datePart.split('/');
+                        return new Date(`${parseInt(year) - 543}-${month}-${day}T${timePart || '00:00'}`);
+                    };
+                    return parseDateTime(b.dateTime) - parseDateTime(a.dateTime);
+                });
+                patient.lastVisitDate = sortedHistory[0].dateTime.split(' ')[0];
+            } else {
+                patient.lastVisitDate = '-';
+            }
+        });
+
+        function generateNewHN() {
+            const buddhistYear = new Date().getFullYear() + 543;
+            const yearPrefix = String(buddhistYear).slice(-2);
+            const hnPrefix = `HN ${yearPrefix}-`;
+            const patientsThisYear = allMockPatients.filter(p => p.hn && p.hn.startsWith(hnPrefix));
+            let maxNumber = 0;
+            if (patientsThisYear.length > 0) {
+                maxNumber = Math.max(...patientsThisYear.map(p => {
+                    const numberPart = p.hn.split('-')[1];
+                    return parseInt(numberPart, 10) || 0;
+                }));
+            }
+            const newNumber = maxNumber + 1;
+            const newNumberPadded = String(newNumber).padStart(4, '0');
+            return `${hnPrefix}${newNumberPadded}`;
+        }
+
+        function getLoggedInUserName() {
+            const el = document.getElementById('loggedInUserName');
+            return el ? el.textContent : 'แพทย์ไม่ระบุชื่อ';
+        }
+
+        function calculateAgeString(dobString) {
+            if (!dobString) return '';
+            try {
+                const dob = new Date(dobString);
+                const today = new Date();
+                let years = today.getFullYear() - dob.getFullYear();
+                let months = today.getMonth() - dob.getMonth();
+                let days = today.getDate() - dob.getDate();
+
+                if (days < 0) {
+                    months--;
+                    const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+                    days += prevMonth.getDate();
+                }
+                if (months < 0) {
+                    years--;
+                    months += 12;
+                }
+                if (years < 0) return '';
+                return `${years} ปี ${months} เดือน`;
+            } catch (e) { console.error("Error calculating age:", e); return ''; }
+        }
+
+        function updateAgeField(dob) {
+            const ageInput = document.getElementById('age');
+            if (ageInput && dob) {
+                ageInput.value = calculateAgeString(dob);
+            } else if (ageInput) {
+                ageInput.value = '';
+            }
+        }
+
+        function updatePremiumStatus(dateString) {
+            const statusDisplay = document.getElementById('premiumStatusDisplay');
+            if (!statusDisplay) return;
+
+            if (!dateString) {
+                statusDisplay.innerHTML = '<span class="text-gray-500">ไม่ได้เป็นสมาชิก</span>';
+                return;
+            }
+
+            const expiryDate = new Date(dateString);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Compare dates only
+
+            const timeDiff = expiryDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+            if (daysRemaining >= 0) {
+                statusDisplay.innerHTML = `<span class="font-semibold text-green-600">ใช้งานได้</span> (เหลือ ${daysRemaining} วัน)`;
+            } else {
+                statusDisplay.innerHTML = `<span class="font-semibold text-red-600">หมดอายุแล้ว</span> (ผ่านมา ${Math.abs(daysRemaining)} วัน)`;
+            }
+        }
+
+
+        function showCustomAlert(htmlMessage) {
+            if (customAlertMessage && customAlertBox && customAlertCloseButton) {
+                lastFocusedElement = document.activeElement;
+                customAlertMessage.innerHTML = htmlMessage;
+                customAlertBox.classList.remove('invisible', 'opacity-0', 'scale-95');
+                customAlertBox.classList.add('visible', 'opacity-100', 'scale-100');
+                customAlertCloseButton.focus();
+            }
+        }
+
+        function hideCustomAlert() {
+            if (customAlertBox) {
+                customAlertBox.classList.add('invisible', 'opacity-0', 'scale-95');
+                customAlertBox.classList.remove('visible', 'opacity-100', 'scale-100');
+                if (lastFocusedElement) {
+                    lastFocusedElement.focus();
+                    lastFocusedElement = null;
+                }
+            }
+        }
+
+        function setButtonLoading(button, isLoading) {
+            if (!button) return;
+            const spinner = button.querySelector('.button-spinner');
+            const icon = button.querySelector('.button-icon');
+            const text = button.querySelector('.button-text');
+
+            if (isLoading) {
+                button.disabled = true;
+                if (spinner) spinner.classList.remove('hidden');
+                if (icon) icon.classList.add('hidden');
+                if (text) text.classList.add('opacity-50');
+            } else {
+                button.disabled = false;
+                if (spinner) spinner.classList.add('hidden');
+                if (icon) icon.classList.remove('hidden');
+                if (text) text.classList.remove('opacity-50');
+            }
+        }
+
+        function setupStickyHeader() {
+            if (!mainPageHeader || !patientSearchContainer) return;
+            const headerHeight = mainPageHeader.offsetHeight;
+            patientSearchContainer.style.top = `${headerHeight}px`;
+        }
+
+        function setDesktopSidebarState(collapse, animate = true) {
+            const isMobile = window.matchMedia("(max-width: 767px)").matches;
+            if (isMobile) return;
+
+            sidebar.style.transition = animate ? 'width 0.3s ease-in-out' : 'none';
+            mainContentArea.style.transition = animate ? 'padding-left 0.3s ease-in-out' : 'none';
+
+            if (sidebar.style.transform === 'translateX(0px)' || sidebar.style.transform === '') {
+                if (collapse) {
+                    sidebar.classList.remove('w-56');
+                    sidebar.classList.add('sidebar-collapsed', 'w-20');
+                    sidebar.style.width = `${SIDEBAR_COLLAPSED_WIDTH_PX}px`;
+                    mainContentArea.style.paddingLeft = `${SIDEBAR_COLLAPSED_WIDTH_PX}px`;
+                    localStorage.setItem('desktopSidebarState', 'collapsed');
+                } else {
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-56');
+                    sidebar.style.width = `${SIDEBAR_EXPANDED_WIDTH_PX}px`;
+                    mainContentArea.style.paddingLeft = `${SIDEBAR_EXPANDED_WIDTH_PX}px`;
+                    localStorage.setItem('desktopSidebarState', 'expanded');
+                }
+            }
+
+            if (!animate) {
+                setTimeout(() => {
+                    sidebar.style.transition = 'transform 0.3s ease-in-out, width 0.3s ease-in-out';
+                    mainContentArea.style.transition = 'padding-left 0.3s ease-in-out';
+                }, 50);
+            }
+        }
+
+        function initializeSidebarLayout() {
+            const isMobileNow = window.matchMedia("(max-width: 767px)").matches;
+
+            sidebar.style.transition = 'none';
+            mainContentArea.style.transition = 'none';
+            if (sidebarOverlay) sidebarOverlay.style.transition = 'none';
+
+            if (!isMobileNow) {
+                const storedState = localStorage.getItem('desktopSidebarState');
+                const shouldCollapse = storedState === 'collapsed';
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.style.transform = 'translateX(0px)';
+                setDesktopSidebarState(shouldCollapse, false);
+
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.add('hidden');
+                    sidebarOverlay.style.opacity = '0';
+                }
+            } else {
+                mainContentArea.style.paddingLeft = '0px';
+                sidebar.classList.remove('sidebar-collapsed', 'w-20', 'w-56');
+                sidebar.style.width = `${SIDEBAR_EXPANDED_WIDTH_PX}px`;
+                sidebar.style.transform = '';
+                sidebar.classList.add('-translate-x-full');
+
+                if (sidebarOverlay && !sidebarOverlay.classList.contains('hidden')) {
+                    sidebarOverlay.classList.add('hidden');
+                    sidebarOverlay.style.opacity = '0';
+                }
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    sidebar.style.transition = 'transform 0.3s ease-in-out, width 0.3s ease-in-out';
+                    mainContentArea.style.transition = 'padding-left 0.3s ease-in-out';
+                    if (sidebarOverlay) sidebarOverlay.style.transition = 'opacity 0.3s ease-in-out';
+                    setupStickyHeader();
+                });
+            });
+        }
+
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function setupPatientModal() {
+            const modal = document.getElementById('patientModal');
+            const openBtn = document.getElementById('openPatientModalButton');
+            const closeBtn = document.getElementById('closePatientModalButton');
+            const cancelFormBtn = document.getElementById('cancelPatientFormButton');
+            const modalBody = modal.querySelector('.modal-body-scrollable');
+
+            function open(mode = 'add-new-patient', patientData = null) {
+                if (!modal) return;
+                lastFocusedElement = document.activeElement;
+
+                modal.dataset.mode = mode;
+                modal.classList.remove('modal-hidden');
+                document.body.classList.add('overflow-hidden');
+                if (modalBody) modalBody.scrollTop = 0;
+
+                const patientDetailsFormSection = document.getElementById('patientDetailsFormSection');
+                const treatmentHistorySection = document.getElementById('treatmentHistoryDisplaySection');
+                const addTreatmentSect = document.getElementById('addTreatmentSection');
+                const patientFormButtons = document.getElementById('patientFormButtons');
+
+                patientDetailsFormSection.classList.add('hidden');
+                treatmentHistorySection.classList.add('hidden');
+                addTreatmentSect.classList.add('section-hidden');
+                if (patientFormButtons) patientFormButtons.classList.add('hidden');
+
+
+                if (mode === 'add-new-patient') {
+                    patientForm.reset();
+                    updatePremiumStatus(null);
+                    updateAgeField(null);
+                    setPatientFormReadOnly(false);
+                    patientRecordIdInput.value = '';
+                    const newHN = generateNewHN();
+                    const hnInput = patientForm.querySelector('#hn');
+                    hnInput.value = newHN;
+                    hnInput.readOnly = true;
+                    hnInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+                    const phoneContainer = document.getElementById('phoneNumbersContainer');
+                    phoneContainer.innerHTML = '';
+                    addPhoneNumberField('', true);
+                    patientModalMainTitle.textContent = 'เพิ่มข้อมูลผู้ป่วยใหม่';
+                    patientFormTitle.textContent = 'กรอกข้อมูลผู้ป่วยใหม่';
+                    patientDetailsFormSection.classList.remove('hidden');
+                    if (patientFormButtons) patientFormButtons.classList.remove('hidden');
+                    if (savePatientButton) savePatientButton.classList.remove('hidden');
+                } else if (mode === 'edit-patient-details' && patientData) {
+                    patientForm.reset();
+                    updatePremiumStatus(patientData.premiumExpiryDate);
+                    populatePatientForm(patientData);
+                    setPatientFormReadOnly(false);
+                    const ageDisplayString = calculateAgeString(patientData.dob);
+                    let titleHTML = `แก้ไขข้อมูล: ${patientData.title} ${patientData.firstName} ${patientData.lastName} (${ageDisplayString}), ${patientData.hn}`;
+                    const isPremium = patientData.premiumExpiryDate && new Date(patientData.premiumExpiryDate) >= new Date();
+                    if (isPremium) {
+                        titleHTML += `
+                            <span class="ml-2 items-center" style="display: inline-block;vertical-align: middle;">
+                                <span class="vip-badge-icon"><i class="fas fa-crown" style="font-size: 1.1rem;"></i></span>
+                                <span class="premium-status-text">PREMIUM MEMBER</span>
+                            </span>
+                        `;
+                    }
+                    patientModalMainTitle.innerHTML = titleHTML;
+                    patientFormTitle.textContent = `แก้ไขข้อมูล: ${patientData.title} ${patientData.firstName}`;
+                    patientDetailsFormSection.classList.remove('hidden');
+                    if (patientFormButtons) patientFormButtons.classList.remove('hidden');
+                    if (savePatientButton) savePatientButton.classList.remove('hidden');
+                } else if (mode === 'view-patient-and-treatment' && patientData) {
+                    patientForm.reset();
+                    updatePremiumStatus(patientData.premiumExpiryDate);
+                    populatePatientForm(patientData);
+                    setPatientFormReadOnly(true);
+                    const ageDisplayString = calculateAgeString(patientData.dob);
+                    let titleHTML = `ข้อมูลผู้ป่วย: ${patientData.title} ${patientData.firstName} ${patientData.lastName} (${ageDisplayString}), ${patientData.hn}`;
+                    const isPremium = patientData.premiumExpiryDate && new Date(patientData.premiumExpiryDate) >= new Date();
+                    if (isPremium) {
+                        titleHTML += `
+                            <span class="ml-2 items-center" style="display: inline-block; vertical-align: middle;">
+                                <span class="vip-badge-icon"><i class="fas fa-crown" style="font-size: 1.1rem;"></i></span>
+                                <span class="premium-status-text">PREMIUM MEMBER</span>
+                            </span>
+                        `;
+                    }
+                    patientModalMainTitle.innerHTML = titleHTML;
+                    patientFormTitle.textContent = `รายละเอียดผู้ป่วย`;
+
+                    historyPatientNameDisplay.textContent = `${patientData.title} ${patientData.firstName} ${patientData.lastName}`;
+                    historyTreatmentCountDisplay.textContent = `(การรักษา ${patientData.treatmentCount} ครั้ง)`;
+                    treatmentPatientIdCardInput.value = patientData.hn;
+
+                    patientDetailsFormSection.classList.remove('hidden');
+                    treatmentHistorySection.classList.remove('hidden');
+                    renderTreatmentHistory(patientData.hn);
+
+                    if (patientFormButtons) patientFormButtons.classList.remove('hidden');
+                    if (savePatientButton) savePatientButton.classList.add('hidden');
+
+                    addTreatmentForm.reset();
+                    treatmentGivenContainer.innerHTML = '';
+                    addTreatmentItem();
+
+                    // Re-initialize flatpickr with the current date and time
+                    flatpickr(treatmentDateTimeField, {
+                        enableTime: true,
+                        dateFormat: "d/m/Y H:i",
+                        locale: "th",
+                        altInput: true,
+                        altFormat: "j F Y (H:i)",
+                        time_24hr: true,
+                        minuteIncrement: 15,
+                        defaultDate: new Date()
+                    });
+
+                    treatmentPractitionerField.value = getLoggedInUserName();
+                    treatmentPractitionerField.readOnly = true;
+                    treatmentPractitionerField.classList.add('bg-gray-100', 'cursor-not-allowed');
+
+                    addTreatmentSect.classList.add('section-hidden');
+                    toggleAddTreatmentFormButton.innerHTML = '<i class="fas fa-plus mr-2"></i>เพิ่มประวัติการรักษา';
+                    toggleAddTreatmentFormButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                    toggleAddTreatmentFormButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                }
+                const firstFocusableElement = modal.querySelector('input:not([type=hidden]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
+                if (firstFocusableElement) {
+                    firstFocusableElement.focus();
+                } else {
+                    closeBtn.focus();
+                }
+            }
+
+            function close() {
+                if (!modal) return;
+                modal.classList.add('modal-hidden');
+                document.body.classList.remove('overflow-hidden');
+                patientForm.reset();
+                updatePremiumStatus(null);
+                updateAgeField(null);
+                setPatientFormReadOnly(false);
+                setButtonLoading(savePatientButton, false);
+                addTreatmentForm.reset();
+                setButtonLoading(saveTreatmentButton, false);
+                treatmentGivenContainer.innerHTML = '';
+                addTreatmentItem();
+
+                document.getElementById('patientDetailsFormSection').classList.add('hidden');
+                document.getElementById('treatmentHistoryDisplaySection').classList.add('hidden');
+                document.getElementById('addTreatmentSection').classList.add('section-hidden');
+
+                if (lastFocusedElement) {
+                    lastFocusedElement.focus();
+                    lastFocusedElement = null;
+                }
+            }
+
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    lastFocusedElement = document.activeElement;
+                    open('add-new-patient');
+                });
+            }
+            if (closeBtn) closeBtn.addEventListener('click', close);
+            if (cancelFormBtn) cancelFormBtn.addEventListener('click', close);
+            if (modal) modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+
+            return { open, close };
+        }
+
+        function setPatientFormReadOnly(isReadOnly) {
+            const inputs = patientForm.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (input.type === 'hidden' || input.type === 'button' || input.type === 'submit' || input.id === 'patientRecordId') return;
+
+                if (input.id === 'hn' || input.id === 'age') {
+                    input.readOnly = true;
+                } else {
+                    input.readOnly = isReadOnly;
+                    input.disabled = isReadOnly;
+                }
+
+                if (isReadOnly || input.id === 'hn' || input.id === 'age') {
+                    input.classList.add('bg-gray-100', 'cursor-not-allowed');
+                    input.classList.remove('focus:ring-teal-500', 'focus:border-teal-500');
+                } else {
+                    input.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                    input.classList.add('focus:ring-teal-500', 'focus:border-teal-500');
+                }
+            });
+        }
+
+        function populatePatientForm(patientData) {
+            if (!patientData || !patientForm) return;
+            patientRecordIdInput.value = patientData.hn;
+
+            patientForm.querySelector('#hn').value = patientData.hn;
+            patientForm.querySelector('#title').value = patientData.title;
+            patientForm.querySelector('#firstName').value = patientData.firstName;
+            patientForm.querySelector('#lastName').value = patientData.lastName;
+            patientForm.querySelector('#nickname').value = patientData.nickname || '';
+            patientForm.querySelector('#gender').value = patientData.gender || '';
+            updateAgeField(patientData.dob);
+            patientForm.querySelector('#idCardNumber').value = patientData.idCardNumber || '';
+            patientForm.querySelector('#nationality').value = patientData.nationality || '';
+            patientForm.querySelector('#race').value = patientData.race || '';
+            patientForm.querySelector('#religion').value = patientData.religion || '';
+            patientForm.querySelector('#occupation').value = patientData.occupation || '';
+
+            const dobFlatpickrInstance = patientForm.querySelector('#dob')._flatpickr;
+            if (dobFlatpickrInstance) {
+                dobFlatpickrInstance.setDate(patientData.dob || '', true);
+            }
+
+            const premiumExpiryFlatpickrInstance = patientForm.querySelector('#premiumExpiryDate')._flatpickr;
+            if (premiumExpiryFlatpickrInstance) {
+                premiumExpiryFlatpickrInstance.setDate(patientData.premiumExpiryDate || '', true);
+            }
+            updatePremiumStatus(patientData.premiumExpiryDate);
+
+            patientForm.querySelector('#address_number').value = patientData.address_number || '';
+            patientForm.querySelector('#address_moo').value = patientData.address_moo || '';
+            patientForm.querySelector('#address_road').value = patientData.address_road || '';
+            patientForm.querySelector('#address_subdistrict').value = patientData.address_subdistrict || '';
+            patientForm.querySelector('#address_district').value = patientData.address_district || '';
+            patientForm.querySelector('#address_province').value = patientData.address_province || '';
+            patientForm.querySelector('#address_zipcode').value = patientData.address_zipcode || '';
+
+            const phoneContainer = document.getElementById('phoneNumbersContainer');
+            phoneContainer.innerHTML = '';
+            const phoneNumbers = Array.isArray(patientData.phoneNumber) && patientData.phoneNumber.length > 0 ? patientData.phoneNumber : [''];
+            phoneNumbers.forEach((phone, index) => {
+                addPhoneNumberField(phone, index === 0);
+            });
+
+            patientForm.querySelector('#emergency_contact_name').value = patientData.emergency_contact_name || '';
+            patientForm.querySelector('#emergency_contact_relation').value = patientData.emergency_contact_relation || '';
+            patientForm.querySelector('#emergency_contact_phone').value = patientData.emergency_contact_phone || '';
+            patientForm.querySelector('#emergency_contact_address').value = patientData.emergency_contact_address || '';
+
+            patientForm.querySelector('#bloodGroup').value = patientData.bloodGroup || '';
+            patientForm.querySelector('#chiefComplaint').value = patientData.chiefComplaint || '';
+            patientForm.querySelector('#allergies').value = patientData.allergies || '';
+            patientForm.querySelector('#medicalHistory').value = patientData.medicalHistory || '';
+        }
+
+        function createPatientRow(patient) {
+            const row = document.createElement('tr');
+            row.classList.add('hover:bg-gray-50', 'transition-colors', 'duration-150', 'patient-table-row');
+            row.dataset.idCard = patient.hn;
+
+            const isPremium = patient.premiumExpiryDate && new Date(patient.premiumExpiryDate) >= new Date();
+            let nameCellContent = `${patient.title} ${patient.firstName} ${patient.lastName}`;
+            let nameCellClass = "p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700";
+
+            if (isPremium) {
+                nameCellContent = `<i class="fas fa-crown text-yellow-500 mr-2" title="สมาชิกพรีเมี่ยม"></i> ${nameCellContent}`;
+                nameCellClass = "p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm font-semibold text-yellow-700 premium-name-cell";
+            }
+
+
+            const headers = [
+                "CODE HN", "เลขบัตรประชาชน", "ผู้ป่วย",
+                "เบอร์โทรศัพท์", "วันที่ลงทะเบียน", "วันที่เข้ารักษาล่าสุด", "การรักษา\n(ครั้ง)", "ดำเนินการ"
+            ];
+
+            row.innerHTML = `
+                <td data-label="${headers[0]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700 font-semibold">${patient.hn}</td>
+                <td data-label="${headers[1]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700">${patient.idCardNumber || '-'}</td>
+                <td data-label="${headers[2]}" class="${nameCellClass}">${nameCellContent}</td>
+                <td data-label="${headers[3]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700">${Array.isArray(patient.phoneNumber) ? patient.phoneNumber[0] : patient.phoneNumber}</td>
+                <td data-label="${headers[4]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700">${patient.registrationDate}</td>
+                <td data-label="${headers[5]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700">${patient.lastVisitDate}</td>
+                <td data-label="${headers[6]}" class="p-2 sm:p-3 md:px-4 md:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700 text-center">${patient.treatmentCount}</td>
+                <td class="actions-cell p-2 sm:p-3 md:px-4 md:py-3 text-center">
+                    <div class="flex justify-center items-center space-x-2">
+                        <button class="text-blue-500 hover:text-blue-700 p-1 view-patient-button" title="ดูข้อมูลผู้ป่วย ${patient.firstName}" aria-label="ดูข้อมูลผู้ป่วย ${patient.title} ${patient.firstName} ${patient.lastName}"><i class="fas fa-eye fa-lg" aria-hidden="true"></i></button>
+                        <button class="text-yellow-500 hover:text-yellow-700 p-1 edit-patient-button" title="แก้ไขข้อมูลผู้ป่วย ${patient.firstName}" aria-label="แก้ไขข้อมูลผู้ป่วย ${patient.title} ${patient.firstName} ${patient.lastName}"><i class="fas fa-edit fa-lg" aria-hidden="true"></i></button>
+                        <button class="text-green-500 hover:text-green-700 p-1 print-record-button" title="พิมพ์เวชระเบียน ${patient.firstName}" aria-label="พิมพ์เวชระเบียน ${patient.title} ${patient.firstName} ${patient.lastName}"><i class="fas fa-print fa-lg" aria-hidden="true"></i></button>
+                    </div>
+                </td>
+            `;
+            return row;
+        }
+
+        function loadMorePatientItems() {
+            if (isLoadingData) return;
+            isLoadingData = true;
+            if (patientTableLoadingIndicator) patientTableLoadingIndicator.classList.remove('hidden');
+            if (noMorePatientDataIndicator) noMorePatientDataIndicator.classList.add('hidden');
+            if (noPatientDataFoundMessage) noPatientDataFoundMessage.classList.add('hidden');
+
+            setTimeout(() => {
+                const startIndex = currentPage * ITEMS_PER_PAGE;
+                const endIndex = startIndex + ITEMS_PER_PAGE;
+                const itemsToLoad = currentFilteredPatientData.slice(startIndex, endIndex);
+
+                if (itemsToLoad.length === 0) {
+                    if (currentPage === 0) {
+                        if (noPatientDataFoundMessage) noPatientDataFoundMessage.classList.remove('hidden');
+                        patientTableBody.innerHTML = '';
+                    } else {
+                        if (noMorePatientDataIndicator) noMorePatientDataIndicator.classList.remove('hidden');
+                    }
+                } else {
+                    if (noPatientDataFoundMessage) noPatientDataFoundMessage.classList.add('hidden');
+                }
+
+                itemsToLoad.forEach(patient => {
+                    patientTableBody.appendChild(createPatientRow(patient));
+                });
+
+                currentPage++;
+                isLoadingData = false;
+                if (patientTableLoadingIndicator) patientTableLoadingIndicator.classList.add('hidden');
+                if (currentFilteredPatientData.slice(currentPage * ITEMS_PER_PAGE).length === 0 && itemsToLoad.length > 0) {
+                    if (noMorePatientDataIndicator) noMorePatientDataIndicator.classList.remove('hidden');
+                }
+
+            }, 300);
+        }
+
+        function resetAndRenderPatientTable() {
+            patientTableBody.innerHTML = '';
+            currentPage = 0;
+            if (noMorePatientDataIndicator) noMorePatientDataIndicator.classList.add('hidden');
+            if (noPatientDataFoundMessage) noPatientDataFoundMessage.classList.add('hidden');
+            loadMorePatientItems();
+        }
+
+        function updateTreatmentSortIcons() {
+            const header = document.querySelector('#treatmentHistoryDisplaySection thead th[data-sort-key="dateTime"]');
+            if (!header) return;
+            const iconContainer = header.querySelector('.sort-icon i');
+            if (!iconContainer) return;
+            iconContainer.className = treatmentHistorySort.direction === 'asc' ? 'fas fa-sort-up text-teal-500' : 'fas fa-sort-down text-teal-500';
+        }
+
+        function renderTreatmentHistory(patientIdCard) {
+            if (!treatmentHistoryTableBodyDisplay || !noTreatmentHistoryMessageDisplay) return;
+            treatmentHistoryTableBodyDisplay.innerHTML = '';
+            const history = mockTreatmentHistories[patientIdCard] || [];
+
+            if (history.length === 0) {
+                noTreatmentHistoryMessageDisplay.classList.remove('hidden');
+            } else {
+                noTreatmentHistoryMessageDisplay.classList.add('hidden');
+
+                const { key, direction } = treatmentHistorySort;
+                const multiplier = direction === 'asc' ? 1 : -1;
+                history.sort((a, b) => {
+                    const parseDateTime = (dtStr) => {
+                        if (!dtStr) return new Date(0);
+                        const [datePart, timePart] = dtStr.split(' ');
+                        const [day, month, year] = datePart.split('/');
+                        return new Date(`${parseInt(year) - 543}-${month}-${day}T${timePart || '00:00'}`);
+                    };
+                    const dateA = parseDateTime(a[key]);
+                    const dateB = parseDateTime(b[key]);
+                    return (dateA - dateB) * multiplier;
+                });
+
+                history.forEach(record => {
+                    const row = document.createElement('tr');
+                    const treatmentDisplay = Array.isArray(record.treatmentGiven) ? record.treatmentGiven.join(', ') : record.treatmentGiven;
+
+                    const [datePart, timePart] = (record.dateTime || ' ').split(' ');
+                    const dateTimeHtml = `${datePart || ''}<br><span class="text-xs text-gray-500">${timePart || ''}</span>`;
+
+                    const vitalsHtml = `
+                        <div class="leading-snug">
+                            T: ${record.temp || '-'} °C, P: ${record.pulse || '-'} /min<br>
+                            BP: ${record.bp || '-'} mmHg<br>
+                            W: ${record.weight || '-'} kg, H: ${record.height || '-'} cm
+                        </div>
+                    `;
+                    row.innerHTML = `
+                        <td class="p-2 text-sm text-gray-700 text-center">${dateTimeHtml}</td>
+                        <td class="p-2 text-sm text-gray-700">${vitalsHtml}</td>
+                        <td class="p-2 text-sm text-gray-700">${record.symptoms}</td>
+                        <td class="p-2 text-sm text-gray-700">${record.diagnosisTCM || '-'}</td>
+                        <td class="p-2 text-sm text-gray-700">${treatmentDisplay}</td>
+                        <td class="p-2 text-sm text-gray-700 whitespace-nowrap">${record.practitioner}</td>
+                        <td class="p-2 text-sm text-gray-700">${record.notes || '-'}</td>
+                        <td class="p-2 text-sm text-gray-700 text-center">
+                            <button class="text-blue-500 hover:text-blue-700 print-opd-button" 
+                                    data-patient-hn="${patientIdCard}" 
+                                    data-treatment-datetime="${record.dateTime}" 
+                                    title="พิมพ์ OPD Card ครั้งนี้">
+                                <i class="fas fa-file-medical fa-lg"></i>
+                            </button>
+                        </td>
+                    `;
+                    treatmentHistoryTableBodyDisplay.appendChild(row);
+                });
+                updateTreatmentSortIcons();
+            }
+        }
+
+        function addTreatmentItem() {
+            if (!treatmentGivenContainer) return;
+            const itemRow = document.createElement('div');
+            itemRow.classList.add('treatment-item-row', 'flex', 'items-center', 'space-x-2', 'mb-2');
+
+            const select = document.createElement('select');
+            select.name = 'treatmentGivenSelect[]';
+            select.classList.add('mt-1', 'block', 'w-full', 'py-2', 'px-3', 'border', 'border-gray-300', 'bg-white', 'rounded-md', 'shadow-sm', 'sm:text-sm', 'flex-1');
+            select.innerHTML = `<option value="">เลือกการรักษา</option><option value="ฝังเข็ม">ฝังเข็ม</option><option value="ครอบแก้ว">ครอบแก้ว</option><option value="อบโคม">อบโคม</option><option value="รมยา">รมยา</option><option value="กัวซา">กัวซา</option><option value="มังกรไฟ">มังกรไฟ</option><option value="ทุนหนา">ทุนหนา</option><option value="ยาจีน">ยาจีน</option><option value="ฝังเข็มกระตุ้นไฟฟ้า">ฝังเข็มกระตุ้นไฟฟ้า</option><option value="อื่นๆ">อื่นๆ</option>`;
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.name = 'treatmentGivenOther[]';
+            textInput.classList.add('mt-1', 'block', 'w-full', 'py-2', 'px-3', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'sm:text-sm', 'hidden', 'flex-auto');
+            textInput.placeholder = 'อื่นๆ: (ระบุรายละเอียด)';
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.classList.add('remove-treatment-button', 'text-red-500', 'hover:text-red-700', 'p-1', 'mt-1');
+            removeButton.innerHTML = '<i class="fas fa-minus-circle text-lg" aria-hidden="true"></i>';
+            removeButton.title = 'ลบรายการนี้';
+            removeButton.setAttribute('aria-label', 'ลบรายการรักษา');
+            removeButton.onclick = () => {
+                if (treatmentGivenContainer.querySelectorAll('.treatment-item-row').length > 1) {
+                    itemRow.remove();
+                } else {
+                    showCustomAlert('ต้องมีรายการรักษาอย่างน้อย 1 รายการ');
+                }
+            };
+
+            itemRow.appendChild(select);
+            itemRow.appendChild(textInput);
+            itemRow.appendChild(removeButton);
+
+            select.addEventListener('change', () => {
+                if (select.value === 'อื่นๆ') {
+                    textInput.classList.remove('hidden');
+                    textInput.required = true;
+                    textInput.value = '';
+                } else {
+                    textInput.classList.add('hidden');
+                    textInput.required = false;
+                    textInput.value = '';
+                }
+            });
+            treatmentGivenContainer.appendChild(itemRow);
+            setTimeout(() => {
+                itemRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+        }
+
+        function formatPhoneNumberOnInput(event) {
+            const input = event.target;
+            let value = input.value.replace(/\D/g, '');
+
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+
+            let formattedValue = '';
+            if (value.length > 0) {
+                if (value.startsWith('02')) {
+                    if (value.length > 2) {
+                        formattedValue = value.substring(0, 2) + '-' + value.substring(2);
+                    } else { formattedValue = value; }
+                    if (value.length > 5) {
+                        formattedValue = value.substring(0, 2) + '-' + value.substring(2, 5) + '-' + value.substring(5);
+                    }
+                } else {
+                    if (value.length > 3) {
+                        formattedValue = value.substring(0, 3) + '-' + value.substring(3);
+                    } else { formattedValue = value; }
+                    if (value.length > 6) {
+                        formattedValue = value.substring(0, 3) + '-' + value.substring(3, 6) + '-' + value.substring(6);
+                    }
+                }
+            }
+            input.value = formattedValue;
+        }
+
+        function addPhoneNumberField(value = '', isFirst = false) {
+            const container = document.getElementById('phoneNumbersContainer');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex items-center space-x-2';
+
+            const input = document.createElement('input');
+            input.type = 'tel';
+            input.name = 'phoneNumber[]';
+            input.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm';
+            input.placeholder = '08x-xxx-xxxx';
+            input.title = 'กรุณากรอกเบอร์โทรศัพท์ 9 หรือ 10 หลัก';
+            input.value = value;
+            if (isFirst) {
+                input.required = true;
+            }
+            input.addEventListener('input', formatPhoneNumberOnInput);
+            wrapper.appendChild(input);
+
+            if (!isFirst) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'text-red-500 hover:text-red-700 p-1 mt-1';
+                removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                removeBtn.title = 'ลบเบอร์โทรนี้';
+                removeBtn.onclick = () => wrapper.remove();
+                wrapper.appendChild(removeBtn);
+            }
+            container.appendChild(wrapper);
+        }
+
+        function adjustFontSizeToFit(element) {
+            if (!element || element.id === 'print_opd_chiefComplaint') return;
+
+            // Use parent element's width for more accurate max width
+            let maxWidth = element.parentElement.offsetWidth;
+
+            // Reset font size to default from CSS before calculation
+            element.style.fontSize = '';
+            let fontSize = parseInt(window.getComputedStyle(element).fontSize);
+
+            // Iteratively shrink font if it overflows, down to a minimum of 3px
+            while (element.scrollWidth > maxWidth && fontSize > 3) {
+                fontSize--;
+                element.style.fontSize = fontSize + 'px';
+            }
+        }
+
+        function populateAndPrintPatientRecord(patientId) {
+            const patientData = allMockPatients.find(p => p.hn === patientId);
+            if (!patientData) { showCustomAlert('ไม่พบข้อมูลผู้ป่วยสำหรับพิมพ์'); return; }
+            const printContainer = document.getElementById('print-container');
+            if (!printContainer) { console.error('Print container not found!'); return; }
+
+            const formatThaiDate = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`;
+            };
+
+            const setText = (id, value) => {
+                const el = printContainer.querySelector('#' + id);
+                if (el) el.textContent = value || '\u00A0';
+            };
+
+            setText('print_hn', patientData.hn.replace('HN ', ''));
+            setText('print_recordDate', patientData.registrationDate);
+            setText('print_firstName', `${patientData.title || ''} ${patientData.firstName || ''}`);
+            setText('print_lastName', patientData.lastName);
+            setText('print_nickname', patientData.nickname);
+            setText('print_dob', formatThaiDate(patientData.dob));
+            setText('print_age', calculateAgeString(patientData.dob));
+            setText('print_gender', patientData.gender);
+            setText('print_idCard', patientData.idCardNumber);
+            setText('print_phone', Array.isArray(patientData.phoneNumber) ? patientData.phoneNumber.join(', ') : patientData.phoneNumber);
+            setText('print_nationality', patientData.nationality);
+            setText('print_race', patientData.race);
+            setText('print_religion', patientData.religion);
+            setText('print_occupation', patientData.occupation);
+            setText('print_addressNo', patientData.address_number);
+            setText('print_addressMoo', patientData.address_moo);
+            setText('print_addressStreet', patientData.address_road);
+            setText('print_addressSubdistrict', patientData.address_subdistrict);
+            setText('print_addressDistrict', patientData.address_district);
+            setText('print_addressProvince', patientData.address_province);
+            setText('print_addressZip', patientData.address_zipcode);
+            setText('print_emergencyName', patientData.emergency_contact_name);
+            setText('print_emergencyRelation', patientData.emergency_contact_relation);
+            setText('print_emergencyPhone', patientData.emergency_contact_phone);
+            setText('print_symptoms', patientData.chiefComplaint);
+            setText('print_bloodType', patientData.bloodGroup);
+            setText('print_allergies', patientData.allergies);
+            setText('print_chronicDisease', patientData.medicalHistory);
+
+            printContainer.classList.add('printing');
+            setTimeout(() => {
+                // Adjust fonts after the print layout is rendered
+                printContainer.querySelectorAll('.adjustable-font').forEach(el => adjustFontSizeToFit(el));
+                window.print();
+                printContainer.classList.remove('printing');
+            }, 150); // Increased timeout slightly for rendering
+        }
+
+        function populateAndPrintOpdCard(patientHn, treatmentDateTime) {
+            const patientData = allMockPatients.find(p => p.hn === patientHn);
+            const treatmentHistory = mockTreatmentHistories[patientHn] || [];
+            const treatmentRecord = treatmentHistory.find(t => t.dateTime === treatmentDateTime);
+
+            if (!patientData || !treatmentRecord) {
+                showCustomAlert('ไม่พบข้อมูลการรักษาสำหรับพิมพ์');
+                return;
+            }
+
+            const printContainer = document.getElementById('print-opd-container');
+            if (!printContainer) { console.error('OPD Print container not found!'); return; }
+
+            const setText = (id, value) => {
+                const el = printContainer.querySelector('#' + id);
+                if (el) el.textContent = value || '\u00A0';
+            };
+
+            // --- Populate Patient Data ---
+            setText('print_opd_hn_id', patientData.hn.replace('HN ', ''));
+            setText('print_opd_recordDate', treatmentRecord.dateTime.split(' ')[0]);
+
+            const visitIndex = [...treatmentHistory].sort((a, b) => {
+                const parseDateTime = (dtStr) => {
+                    const [datePart, timePart] = dtStr.split(' ');
+                    const [day, month, year] = datePart.split('/');
+                    return new Date(`${year - 543}-${month}-${day}T${timePart || '00:00'}`);
+                };
+                return parseDateTime(a.dateTime) - parseDateTime(b.dateTime);
+            }).findIndex(t => t.dateTime === treatmentDateTime);
+            setText('print_opd_visitCount', visitIndex > -1 ? (visitIndex + 1).toString() : '-');
+
+            setText('print_opd_patientName', `${patientData.title} ${patientData.firstName} ${patientData.lastName}`);
+            setText('print_opd_nickname', patientData.nickname);
+            setText('print_opd_gender', patientData.gender);
+            setText('print_opd_idCard', patientData.idCardNumber);
+            setText('print_opd_age', calculateAgeString(patientData.dob));
+
+            const fullAddress = [
+                patientData.address_number, patientData.address_moo, patientData.address_road,
+                patientData.address_subdistrict, patientData.address_district,
+                patientData.address_province, patientData.address_zipcode
+            ].filter(Boolean).join(' ');
+            setText('print_opd_address', fullAddress);
+            setText('print_opd_phone', Array.isArray(patientData.phoneNumber) ? patientData.phoneNumber.join(', ').replace(/-/g, '') : (patientData.phoneNumber || '').replace(/-/g, ''));
+
+            setText('print_opd_chronicDisease', patientData.medicalHistory);
+            setText('print_opd_allergies', patientData.allergies);
+
+            // --- Populate Treatment Data ---
+            setText('print_opd_temp', treatmentRecord.temp);
+            setText('print_opd_pulse', treatmentRecord.pulse);
+            setText('print_opd_bp', treatmentRecord.bp);
+            setText('print_opd_weight', treatmentRecord.weight);
+            setText('print_opd_height', treatmentRecord.height);
+            setText('print_opd_chiefComplaint', treatmentRecord.symptoms);
+
+            const treatmentsGiven = Array.isArray(treatmentRecord.treatmentGiven) ? treatmentRecord.treatmentGiven : [];
+            const checkboxContainer = printContainer.querySelector('#print_opd_treatments_container');
+
+            const all_treatments = [
+                "ฝังเข็ม", "ครอบแก้ว", "อบโคม", "รมยา", "กัวซา",
+                "มังกรไฟ", "ทุนหนา", "ยาจีน", "แมะ", "ฝังเข็มกระตุ้นไฟฟ้า"
+            ];
+
+            if (checkboxContainer) checkboxContainer.innerHTML = '';
+
+            const createCheckbox = (name) => {
+                const isChecked = treatmentsGiven.includes(name);
+                const label = document.createElement('label');
+
+                if (name === 'ฝังเข็มกระตุ้นไฟฟ้า') {
+                    label.className = 'checkbox-label items-center'; // Vertically center the whole label content
+                    label.innerHTML = `<span class="checkbox mr-2 flex-shrink-0">${isChecked ? '✔' : ''}</span><span style="line-height: 1.1; display: inline-block;">ฝังเข็ม<br>กระตุ้นไฟฟ้า</span>`;
+                } else {
+                    label.className = 'checkbox-label items-start'; // Default alignment
+                    label.innerHTML = `<span class="checkbox mr-2 mt-1 flex-shrink-0">${isChecked ? '✔' : ''}</span><span>${name}</span>`;
+                }
+
+                return label;
+            };
+
+            if (checkboxContainer) {
+                all_treatments.forEach(name => checkboxContainer.appendChild(createCheckbox(name)));
+            }
+
+            const practitionerName = treatmentRecord.practitioner;
+            const practitionerSignatureLine = printContainer.querySelector('#print_opd_practitioner');
+            const practitionerTitle = printContainer.querySelector('#print_opd_practitioner_title');
+
+            if (practitionerName && practitionerName.trim() !== '' && practitionerSignatureLine && practitionerTitle) {
+                practitionerSignatureLine.innerHTML = '&nbsp;'; // Blank line for signature
+                practitionerTitle.textContent = '(พจ. พงษ์สิทธิ์ แซ่อึ้ง)'; // Set the full name
+            } else if (practitionerSignatureLine && practitionerTitle) {
+                practitionerSignatureLine.innerHTML = '&nbsp;'; // Still blank
+                practitionerTitle.textContent = '(ลงชื่อแพทย์ผู้ตรวจ)'; // Default text
+            }
+
+            printContainer.classList.add('printing');
+            setTimeout(() => {
+                // Adjust fonts after the print layout is rendered
+                printContainer.querySelectorAll('.adjustable-font').forEach(el => adjustFontSizeToFit(el));
+                window.print();
+                printContainer.classList.remove('printing');
+            }, 150); // Increased timeout slightly for rendering
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let currentSort = { key: 'hn', direction: 'asc' };
+
+            function updateSortIcons() {
+                document.querySelectorAll('#patientTable thead th[data-sort-key]').forEach(th => {
+                    const iconContainer = th.querySelector('.sort-icon i');
+                    if (!iconContainer) return;
+                    if (th.dataset.sortKey === currentSort.key) {
+                        iconContainer.className = currentSort.direction === 'asc' ? 'fas fa-sort-up text-teal-500' : 'fas fa-sort-down text-teal-500';
+                    } else {
+                        iconContainer.className = 'fas fa-sort text-gray-400';
+                    }
+                });
+            }
+
+            function sortData() {
+                const { key, direction } = currentSort;
+                const multiplier = direction === 'asc' ? 1 : -1;
+
+                currentFilteredPatientData.sort((a, b) => {
+                    let valA = a[key];
+                    let valB = b[key];
+
+                    if (key === 'treatmentCount') {
+                        return (Number(valA) - Number(valB)) * multiplier;
+                    }
+
+                    if (key === 'registrationDate' || key === 'lastVisitDate') {
+                        const parseDate = (dateStr) => {
+                            if (!dateStr || dateStr === '-') return new Date(0);
+                            const [day, month, year] = dateStr.split('/');
+                            return new Date(`${parseInt(year) - 543}-${month}-${day}`);
+                        };
+                        const dateA = parseDate(a[key]);
+                        const dateB = parseDate(b[key]);
+                        return (dateA - dateB) * multiplier;
+                    }
+
+                    if (typeof valA === 'string' && typeof valB === 'string') {
+                        return valA.localeCompare(valB, 'th-TH') * multiplier;
+                    }
+
+                    if (valA < valB) return -1 * multiplier;
+                    if (valA > valB) return 1 * multiplier;
+                    return 0;
+                });
+
+                resetAndRenderPatientTable();
+                updateSortIcons();
+            }
+
+            const tableHeader = document.querySelector('#patientTable thead');
+            if (tableHeader) {
+                tableHeader.addEventListener('click', (event) => {
+                    const header = event.target.closest('th[data-sort-key]');
+                    if (!header) return;
+
+                    const sortKey = header.dataset.sortKey;
+                    if (currentSort.key === sortKey) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.key = sortKey;
+                        currentSort.direction = 'asc';
+                    }
+                    sortData();
+                });
+            }
+
+            flatpickr(patientForm.querySelector('#dob'), {
+                dateFormat: "Y-m-d",
+                locale: "th",
+                altInput: true,
+                altFormat: "j F Y",
+                onChange: function (selectedDates, dateStr, instance) {
+                    updateAgeField(dateStr);
+                }
+            });
+            flatpickr(patientForm.querySelector('#premiumExpiryDate'), {
+                dateFormat: "Y-m-d",
+                locale: "th",
+                altInput: true,
+                altFormat: "j F Y",
+                allowInput: true,
+                onChange: function (selectedDates, dateStr, instance) {
+                    updatePremiumStatus(dateStr);
+                }
+            });
+            flatpickr(treatmentDateTimeField, { enableTime: true, dateFormat: "d/m/Y H:i", locale: "th", altInput: true, altFormat: "j F Y (H:i)", time_24hr: true, minuteIncrement: 15 });
+
+            patientModalControls = setupPatientModal();
+            document.getElementById('addPhoneNumberButton').addEventListener('click', () => addPhoneNumberField('', false));
+
+            const treatmentTableHeader = document.querySelector('#treatmentHistoryDisplaySection thead');
+            if (treatmentTableHeader) {
+                treatmentTableHeader.addEventListener('click', (event) => {
+                    const header = event.target.closest('th[data-sort-key]');
+                    if (!header) return;
+
+                    const sortKey = header.dataset.sortKey;
+                    if (treatmentHistorySort.key === sortKey) {
+                        treatmentHistorySort.direction = treatmentHistorySort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        treatmentHistorySort.key = sortKey;
+                        treatmentHistorySort.direction = 'desc';
+                    }
+
+                    const patientIdCard = treatmentPatientIdCardInput.value;
+                    if (patientIdCard) {
+                        renderTreatmentHistory(patientIdCard);
+                    }
+                });
+            }
+
+            if (mobileMenuButton && sidebar && sidebarOverlay) {
+                mobileMenuButton.addEventListener('click', function () {
+                    const isSidebarOpen = !sidebar.classList.contains('-translate-x-full') && sidebar.style.transform !== 'translateX(-100%)';
+                    if (isSidebarOpen) {
+                        sidebar.style.transform = 'translateX(-100%)';
+                        if (sidebarOverlay) {
+                            sidebarOverlay.style.opacity = '0';
+                            setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+                        }
+                    } else {
+                        sidebar.classList.remove('-translate-x-full');
+                        sidebar.style.transform = 'translateX(0px)';
+                        if (sidebarOverlay) {
+                            sidebarOverlay.classList.remove('hidden');
+                            setTimeout(() => { sidebarOverlay.style.opacity = '0.5'; }, 10);
+                        }
+                    }
+                });
+
+                if (sidebarOverlay) {
+                    sidebarOverlay.addEventListener('click', function () {
+                        sidebar.style.transform = 'translateX(-100%)';
+                        sidebarOverlay.style.opacity = '0';
+                        setTimeout(() => {
+                            sidebar.classList.add('-translate-x-full');
+                            sidebar.style.transform = '';
+                            if (sidebarOverlay) sidebarOverlay.classList.add('hidden');
+                        }, 300);
+                    });
+                }
+            }
+
+            // Hammer.js Sidebar Swipe Logic
+            let isPanningSidebar = false;
+            let panInitialTranslateX = 0;
+            let panInitialSidebarWidth = 0;
+            const edgeSwipeOpenThresholdPercentage = 0.25;
+            const swipeVelocityThreshold = 0.3;
+            const swipeDistanceThresholdRatio = 0.35;
+            let currentRAF = null;
+
+            if (mainContentArea && typeof Hammer !== 'undefined') {
+                const mainContentHammer = new Hammer(mainContentArea, {
+                    recognizers: [[Hammer.Pan, { direction: Hammer.DIRECTION_HORIZONTAL, threshold: 30 }]]
+                });
+                mainContentHammer.on('panstart', handlePanStart);
+                mainContentHammer.on('panmove', handlePanMove);
+                mainContentHammer.on('panend pancancel', handlePanEnd);
+            }
+
+            if (sidebar && typeof Hammer !== 'undefined') {
+                const sidebarHammer = new Hammer(sidebar, {
+                    recognizers: [[Hammer.Pan, { direction: Hammer.DIRECTION_HORIZONTAL, threshold: 10 }]]
+                });
+                sidebarHammer.on('panstart', handlePanStart);
+                sidebarHammer.on('panmove', handlePanMove);
+                sidebarHammer.on('panend pancancel', handlePanEnd);
+
+                if (sidebarOverlay) {
+                    const overlayHammer = new Hammer(sidebarOverlay);
+                    overlayHammer.add(new Hammer.Pan({ direction: Hammer.DIRECTION_HORIZONTAL, threshold: 10 }));
+                    overlayHammer.on('panstart', handlePanStart);
+                    overlayHammer.on('panmove', handlePanMove);
+                    overlayHammer.on('panend pancancel', handlePanEnd);
+                }
+            }
+
+            function handlePanStart(ev) {
+                const isMobile = window.matchMedia("(max-width: 767px)").matches;
+                const sidebarCurrentWidth = SIDEBAR_EXPANDED_WIDTH_PX;
+                const clientX = ev.pointers[0].clientX;
+                const sidebarIsEffectivelyClosed = sidebar.classList.contains('-translate-x-full') || (sidebar.style.transform && sidebar.style.transform.startsWith('translateX(-'));
+
+                isPanningSidebar = false;
+
+                if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY) + 5) {
+                    if (sidebarIsEffectivelyClosed) {
+                        if ((ev.target === mainContentArea || mainContentArea.contains(ev.target)) && !sidebar.contains(ev.target) && clientX < window.innerWidth * edgeSwipeOpenThresholdPercentage && (ev.direction === Hammer.DIRECTION_RIGHT || (ev.direction === Hammer.DIRECTION_LEFT && ev.deltaX > 0))) {
+                            isPanningSidebar = true;
+                            panInitialTranslateX = -sidebarCurrentWidth;
+                            sidebar.classList.remove('-translate-x-full');
+                            sidebar.style.transform = `translateX(${panInitialTranslateX}px)`;
+                            if (sidebarOverlay) { sidebarOverlay.classList.remove('hidden'); sidebarOverlay.style.opacity = '0'; }
+                        }
+                    } else {
+                        if (isMobile) {
+                            if ((sidebar.contains(ev.target) || (sidebarOverlay && sidebarOverlay.contains(ev.target))) && (ev.direction === Hammer.DIRECTION_LEFT || (ev.direction === Hammer.DIRECTION_RIGHT && ev.deltaX < 0))) {
+                                isPanningSidebar = true;
+                                const matrix = new WebKitCSSMatrix(window.getComputedStyle(sidebar).transform);
+                                panInitialTranslateX = matrix.m41;
+                            }
+                        } else {
+                            if (sidebar.contains(ev.target)) {
+                                isPanningSidebar = true;
+                                panInitialSidebarWidth = sidebar.offsetWidth;
+                                panInitialTranslateX = 0;
+                            }
+                        }
+                    }
+                }
+
+                if (isPanningSidebar) {
+                    sidebar.classList.add('dragging');
+                    if (sidebarOverlay) sidebarOverlay.classList.add('dragging');
+                    document.body.style.userSelect = 'none';
+                    if (mainContentArea) mainContentArea.style.userSelect = 'none';
+                }
+            }
+
+            function handlePanMove(ev) {
+                if (!isPanningSidebar) return;
+
+                if (currentRAF) cancelAnimationFrame(currentRAF);
+                currentRAF = requestAnimationFrame(() => {
+                    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+                    if (isMobile || panInitialTranslateX < 0) {
+                        const targetWidth = SIDEBAR_EXPANDED_WIDTH_PX;
+                        let newTranslateX = panInitialTranslateX + ev.deltaX;
+                        newTranslateX = Math.max(-targetWidth, Math.min(newTranslateX, 0));
+                        sidebar.style.transform = `translateX(${newTranslateX}px)`;
+                        if (sidebarOverlay) {
+                            const openRatio = (targetWidth + newTranslateX) / targetWidth;
+                            sidebarOverlay.style.opacity = Math.max(0, Math.min(openRatio * 0.5, 0.5)).toString();
+                        }
+                    } else if (!isMobile && panInitialTranslateX === 0) {
+                        let newWidth = panInitialSidebarWidth + ev.deltaX;
+                        newWidth = Math.max(SIDEBAR_COLLAPSED_WIDTH_PX, Math.min(newWidth, SIDEBAR_EXPANDED_WIDTH_PX));
+                        sidebar.style.width = `${newWidth}px`;
+                        mainContentArea.style.paddingLeft = `${newWidth}px`;
+                        if (newWidth <= SIDEBAR_COLLAPSED_WIDTH_PX + 20) {
+                            if (!sidebar.classList.contains('sidebar-collapsed')) sidebar.classList.add('sidebar-collapsed');
+                        } else {
+                            if (sidebar.classList.contains('sidebar-collapsed')) sidebar.classList.remove('sidebar-collapsed');
+                        }
+                    }
+                    currentRAF = null;
+                });
+            }
+
+            function handlePanEnd(ev) {
+                if (currentRAF) { cancelAnimationFrame(currentRAF); currentRAF = null; }
+                if (!isPanningSidebar) return;
+
+                isPanningSidebar = false;
+                sidebar.classList.remove('dragging');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('dragging');
+                document.body.style.userSelect = '';
+                if (mainContentArea) mainContentArea.style.userSelect = '';
+
+                const isMobile = window.matchMedia("(max-width: 767px)").matches;
+                const velocityX = ev.velocityX;
+                const deltaX = ev.deltaX;
+
+                sidebar.style.transition = 'transform 0.3s ease-in-out, width 0.3s ease-in-out';
+                if (sidebarOverlay) sidebarOverlay.style.transition = 'opacity 0.3s ease-in-out';
+                if (!isMobile) mainContentArea.style.transition = 'padding-left 0.3s ease-in-out';
+
+                if (isMobile || panInitialTranslateX < 0) {
+                    const targetWidth = SIDEBAR_EXPANDED_WIDTH_PX;
+                    let shouldOpen;
+                    if (panInitialTranslateX < 0) {
+                        shouldOpen = (velocityX > swipeVelocityThreshold) || (deltaX > targetWidth * swipeDistanceThresholdRatio);
+                    } else {
+                        shouldOpen = !((velocityX < -swipeVelocityThreshold) || (deltaX < -targetWidth * swipeDistanceThresholdRatio));
+                    }
+
+                    if (shouldOpen) {
+                        sidebar.classList.remove('-translate-x-full');
+                        sidebar.style.transform = 'translateX(0px)';
+                        if (sidebarOverlay) {
+                            sidebarOverlay.style.opacity = '0.5';
+                            sidebarOverlay.classList.remove('hidden');
+                        }
+                    } else {
+                        sidebar.style.transform = `translateX(-100%)`;
+                        if (sidebarOverlay) sidebarOverlay.style.opacity = '0';
+                        mainContentArea.style.paddingLeft = '0px';
+
+                        const transitionEndHandler = () => {
+                            sidebar.classList.add('-translate-x-full');
+                            sidebar.style.transform = '';
+                            if (sidebarOverlay) sidebarOverlay.classList.add('hidden');
+                            sidebar.removeEventListener('transitionend', transitionEndHandler);
+                        };
+                        sidebar.addEventListener('transitionend', transitionEndHandler, { once: true });
+                        setTimeout(() => {
+                            if (!sidebar.classList.contains('-translate-x-full') && sidebar.style.transform.startsWith('translateX(-')) {
+                                transitionEndHandler();
+                            }
+                        }, 350);
+                    }
+                } else {
+                    const currentWidthAfterDrag = sidebar.offsetWidth;
+                    let shouldBeCollapsed;
+                    if (velocityX < -swipeVelocityThreshold * 0.5 || (velocityX <= 0 && currentWidthAfterDrag < (SIDEBAR_EXPANDED_WIDTH_PX * 0.6))) {
+                        shouldBeCollapsed = true;
+                    } else if (velocityX > swipeVelocityThreshold * 0.5 || (velocityX >= 0 && currentWidthAfterDrag > (SIDEBAR_COLLAPSED_WIDTH_PX * 1.8))) {
+                        shouldBeCollapsed = false;
+                    } else {
+                        shouldBeCollapsed = currentWidthAfterDrag < (SIDEBAR_EXPANDED_WIDTH_PX + SIDEBAR_COLLAPSED_WIDTH_PX) / 2;
+                    }
+                    setDesktopSidebarState(shouldBeCollapsed, true);
+                    sidebar.style.transform = 'translateX(0px)';
+                }
+                setTimeout(() => {
+                    sidebar.style.transition = 'transform 0.3s ease-in-out, width 0.3s ease-in-out';
+                    if (sidebarOverlay) sidebarOverlay.style.transition = 'opacity 0.3s ease-in-out';
+                    mainContentArea.style.transition = 'padding-left 0.3s ease-in-out';
+                }, 310);
+            }
+
+            initializeSidebarLayout();
+
+            currentFilteredPatientData = [...allMockPatients];
+            sortData();
+
+            if (mainContentArea) {
+                mainContentArea.addEventListener('scroll', debounce(() => {
+                    const buffer = 150;
+                    if (!isLoadingData && (mainContentArea.scrollTop + mainContentArea.clientHeight >= mainContentArea.scrollHeight - buffer)) {
+                        if (currentFilteredPatientData.slice(currentPage * ITEMS_PER_PAGE).length > 0) {
+                            loadMorePatientItems();
+                        } else if (patientTableBody.hasChildNodes() && patientTableBody.firstChild.textContent !== "ไม่พบข้อมูลผู้ป่วย") {
+                            if (noMorePatientDataIndicator) noMorePatientDataIndicator.classList.remove('hidden');
+                        }
+                    }
+                }, 50));
+            }
+
+            if (patientSearchInputOnPage) {
+                patientSearchInputOnPage.addEventListener('input', debounce(function () {
+                    const searchTerm = patientSearchInputOnPage.value.toLowerCase().trim();
+                    if (searchTerm === "") {
+                        currentFilteredPatientData = [...allMockPatients];
+                    } else {
+                        currentFilteredPatientData = allMockPatients.filter(patient =>
+                            Object.values(patient).some(value =>
+                                String(value).toLowerCase().includes(searchTerm)
+                            )
+                        );
+                    }
+                    sortData();
+                }, 300));
+            }
+
+            if (patientForm && savePatientButton) {
+                patientForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    setButtonLoading(savePatientButton, true);
+                    const patientIdToUpdate = patientRecordIdInput.value;
+                    const formData = new FormData(patientForm);
+                    const data = Object.fromEntries(formData.entries());
+                    data.phoneNumber = formData.getAll('phoneNumber[]');
+
+                    setTimeout(() => {
+                        const patientIndex = allMockPatients.findIndex(p => p.hn === patientIdToUpdate);
+                        let message = '';
+                        if (patientIndex > -1) {
+                            data.treatmentCount = allMockPatients[patientIndex].treatmentCount;
+                            allMockPatients[patientIndex] = { ...allMockPatients[patientIndex], ...data };
+                            message = `
+                                <div class='text-lg font-semibold mb-2'>อัปเดตข้อมูลผู้ป่วย</div>
+                                <div class='text-sm text-gray-600 mb-2'>${data.hn} ${data.title} ${data.firstName} ${data.lastName}</div>
+                                <div class='text-green-600 font-bold'>เรียบร้อยแล้ว</div>
+                            `;
+                        } else {
+                            const newPatientEntry = {
+                                ...data,
+                                registrationDate: new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                                treatmentCount: 0
+                            };
+                            allMockPatients.unshift(newPatientEntry);
+                            if (!mockTreatmentHistories[data.hn]) {
+                                mockTreatmentHistories[data.hn] = [];
+                            }
+                            message = `
+                                <div class='text-lg font-semibold mb-2'>เพิ่มข้อมูลผู้ป่วยใหม่</div>
+                                <div class='text-sm text-gray-600 mb-2'>${data.hn} ${data.title} ${data.firstName} ${data.lastName}</div>
+                                <div class='text-green-600 font-bold'>เรียบร้อยแล้ว</div>
+                            `;
+                        }
+
+                        const searchTerm = patientSearchInputOnPage.value.toLowerCase().trim();
+                        currentFilteredPatientData = (searchTerm === "") ? [...allMockPatients] : allMockPatients.filter(p => Object.values(p).some(val => String(val).toLowerCase().includes(searchTerm)));
+
+                        sortData();
+                        setButtonLoading(savePatientButton, false);
+                        patientModalControls.close();
+
+                        setTimeout(() => {
+                            showCustomAlert(message);
+                        }, 150);
+
+                    }, 500);
+                });
+            }
+
+            if (patientTableBody) {
+                patientTableBody.addEventListener('click', function (event) {
+                    const targetButton = event.target.closest('button');
+                    const targetRow = event.target.closest('tr.patient-table-row');
+                    let patientIdCardFromRow;
+                    let actionTriggerElement = null;
+
+                    if (targetButton) {
+                        patientIdCardFromRow = targetButton.closest('tr').dataset.idCard;
+                        actionTriggerElement = targetButton;
+                    } else if (targetRow) {
+                        patientIdCardFromRow = targetRow.dataset.idCard;
+                        actionTriggerElement = targetRow;
+                    } else { return; }
+
+                    const patientData = allMockPatients.find(p => p.hn === patientIdCardFromRow);
+                    if (!patientData) {
+                        showCustomAlert("ไม่พบข้อมูลผู้ป่วย");
+                        return;
+                    }
+
+                    if (targetButton?.classList.contains('view-patient-button')) {
+                        lastFocusedElement = actionTriggerElement;
+                        patientModalControls.open('view-patient-and-treatment', patientData);
+                    } else if (targetButton?.classList.contains('edit-patient-button')) {
+                        lastFocusedElement = actionTriggerElement;
+                        patientModalControls.open('edit-patient-details', patientData);
+                    } else if (targetButton?.classList.contains('print-record-button')) {
+                        populateAndPrintPatientRecord(patientData.hn);
+                    } else if (targetRow && !targetButton) {
+                        lastFocusedElement = actionTriggerElement;
+                        patientModalControls.open('view-patient-and-treatment', patientData);
+                    }
+                });
+            }
+
+            if (patientModal) {
+                patientModal.addEventListener('click', function (event) {
+                    const printOpdButton = event.target.closest('.print-opd-button');
+                    if (printOpdButton) {
+                        const patientHn = printOpdButton.dataset.patientHn;
+                        const treatmentDateTime = printOpdButton.dataset.treatmentDatetime;
+                        populateAndPrintOpdCard(patientHn, treatmentDateTime);
+                    }
+                });
+            }
+
+            if (toggleAddTreatmentFormButton) {
+                toggleAddTreatmentFormButton.addEventListener('click', () => {
+                    const isCurrentlyHidden = addTreatmentSection.classList.contains('section-hidden');
+                    const modalBody = patientModal.querySelector('.modal-body-scrollable');
+
+                    if (isCurrentlyHidden) {
+                        addTreatmentSection.classList.remove('section-hidden');
+                        toggleAddTreatmentFormButton.innerHTML = '<i class="fas fa-times mr-2" aria-hidden="true"></i>ยกเลิกการเพิ่ม';
+                        toggleAddTreatmentFormButton.classList.replace('bg-green-500', 'bg-red-500');
+                        toggleAddTreatmentFormButton.classList.replace('hover:bg-green-600', 'hover:bg-red-600');
+
+                        addTreatmentSection.addEventListener('transitionend', function onTransitionEnd(event) {
+                            if (event.propertyName === 'max-height') {
+                                if (addTreatmentSection && modalBody) {
+                                    modalBody.scrollTo({ top: addTreatmentSection.offsetTop, behavior: 'smooth' });
+                                }
+                                addTreatmentSection.removeEventListener('transitionend', onTransitionEnd);
+                            }
+                        });
+
+                    } else {
+                        addTreatmentSection.classList.add('section-hidden');
+                        toggleAddTreatmentFormButton.innerHTML = '<i class="fas fa-plus mr-2" aria-hidden="true"></i>เพิ่มประวัติการรักษา';
+                        toggleAddTreatmentFormButton.classList.replace('bg-red-500', 'bg-green-500');
+                        toggleAddTreatmentFormButton.classList.replace('hover:bg-red-600', 'hover:bg-green-600');
+                    }
+                });
+            }
+
+            if (cancelAddTreatmentButton) {
+                cancelAddTreatmentButton.addEventListener('click', () => {
+                    addTreatmentSection.classList.add('section-hidden');
+                    toggleAddTreatmentFormButton.innerHTML = '<i class="fas fa-plus mr-2" aria-hidden="true"></i>เพิ่มประวัติการรักษา';
+                    toggleAddTreatmentFormButton.classList.replace('bg-red-500', 'bg-green-500');
+                    toggleAddTreatmentFormButton.classList.replace('hover:bg-red-600', 'hover:bg-green-600');
+                    if (treatmentHistoryDisplaySection) {
+                        const modalBody = patientModal.querySelector('.modal-body-scrollable');
+                        if (modalBody) {
+                            modalBody.scrollTo({ top: treatmentHistoryDisplaySection.offsetTop - 30, behavior: 'smooth' });
+                        }
+                    }
+                });
+            }
+
+            if (addTreatmentItemButton) {
+                addTreatmentItemButton.addEventListener('click', addTreatmentItem);
+            }
+
+            if (addTreatmentForm && saveTreatmentButton) {
+                addTreatmentForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    setButtonLoading(saveTreatmentButton, true);
+                    const patientIdCard = treatmentPatientIdCardInput.value;
+                    const formData = new FormData(addTreatmentForm);
+                    const treatments = [];
+                    const treatmentRows = treatmentGivenContainer.querySelectorAll('.treatment-item-row');
+                    let isTreatmentValid = true;
+
+                    treatmentRows.forEach(row => {
+                        const select = row.querySelector('select[name="treatmentGivenSelect[]"]');
+                        const otherInput = row.querySelector('input[name="treatmentGivenOther[]"]');
+                        let treatmentValue = select.value;
+                        select.classList.remove('border-red-500');
+                        otherInput.classList.remove('border-red-500');
+
+                        if (treatmentValue === 'อื่นๆ') {
+                            treatmentValue = otherInput.value.trim();
+                            if (!treatmentValue) { isTreatmentValid = false; otherInput.classList.add('border-red-500'); }
+                        } else if (!treatmentValue) {
+                            isTreatmentValid = false; select.classList.add('border-red-500');
+                        }
+                        if (treatmentValue) treatments.push(treatmentValue);
+                    });
+
+                    if (!isTreatmentValid || treatments.length === 0) {
+                        showCustomAlert(!isTreatmentValid ? 'กรุณากรอกข้อมูลการรักษาให้ครบถ้วน' : 'กรุณาเพิ่มรายการรักษาอย่างน้อย 1 รายการ');
+                        setButtonLoading(saveTreatmentButton, false);
+                        return;
+                    }
+
+                    setTimeout(() => {
+                        const newTreatmentRecord = {
+                            dateTime: formData.get('treatmentDateTime'),
+                            temp: formData.get('temp'), pulse: formData.get('pulse'), bp: formData.get('bp'),
+                            weight: formData.get('weight'), height: formData.get('height'),
+                            symptoms: formData.get('symptoms'), diagnosisTCM: formData.get('diagnosisTCM'),
+                            treatmentGiven: treatments, practitioner: formData.get('practitioner'), notes: formData.get('notes')
+                        };
+
+                        if (!mockTreatmentHistories[patientIdCard]) {
+                            mockTreatmentHistories[patientIdCard] = [];
+                        }
+                        mockTreatmentHistories[patientIdCard].push(newTreatmentRecord);
+
+                        const patientIndex = allMockPatients.findIndex(p => p.hn === patientIdCard);
+                        if (patientIndex > -1) {
+                            allMockPatients[patientIndex].treatmentCount++;
+                            allMockPatients[patientIndex].lastVisitDate = newTreatmentRecord.dateTime.split(' ')[0];
+
+                            const searchTerm = patientSearchInputOnPage.value.toLowerCase().trim();
+                            currentFilteredPatientData = (searchTerm === "") ? [...allMockPatients] : allMockPatients.filter(p => Object.values(p).some(val => String(val).toLowerCase().includes(searchTerm)));
+                            sortData();
+
+                            historyTreatmentCountDisplay.textContent = `(การรักษา ${allMockPatients[patientIndex].treatmentCount} ครั้ง)`;
+                        }
+
+                        renderTreatmentHistory(patientIdCard);
+                        addTreatmentForm.reset();
+                        treatmentGivenContainer.innerHTML = '';
+                        addTreatmentItem();
+
+                        // Destroy the old flatpickr instance if it exists to prevent state issues
+                        if (treatmentDateTimeField._flatpickr) {
+                            treatmentDateTimeField._flatpickr.destroy();
+                        }
+                        // Re-initialize flatpickr for the next use, ensuring time is included
+                        flatpickr(treatmentDateTimeField, {
+                            enableTime: true,
+                            dateFormat: "d/m/Y H:i",
+                            locale: "th",
+                            altInput: true,
+                            altFormat: "j F Y (H:i)",
+                            time_24hr: true,
+                            minuteIncrement: 15,
+                            defaultDate: new Date()
+                        });
+                        treatmentPractitionerField.value = getLoggedInUserName();
+
+                        setButtonLoading(saveTreatmentButton, false);
+                        showCustomAlert('เพิ่มประวัติการรักษาเรียบร้อยแล้ว');
+
+                        addTreatmentSection.classList.add('section-hidden');
+                        toggleAddTreatmentFormButton.innerHTML = '<i class="fas fa-plus mr-2" aria-hidden="true"></i>เพิ่มประวัติการรักษา';
+                        toggleAddTreatmentFormButton.classList.replace('bg-red-500', 'bg-green-500');
+                        toggleAddTreatmentFormButton.classList.replace('hover:bg-red-600', 'hover:bg-green-600');
+                        if (treatmentHistoryDisplaySection) {
+                            setTimeout(() => {
+                                treatmentHistoryDisplaySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 50);
+                        }
+                    }, 500);
+                });
+            }
+
+            if (customAlertCloseButton) {
+                customAlertCloseButton.addEventListener('click', hideCustomAlert);
+            }
+
+            document.addEventListener('click', function (event) {
+                if (userProfileDropdown && userProfileButton && !userProfileButton.contains(event.target) && !userProfileDropdown.contains(event.target)) {
+                    userProfileDropdown.classList.add('hidden');
+                    userProfileDropdown.classList.remove('dropdown-active');
+                }
+            });
+
+            if (userProfileButton && userProfileDropdown) {
+                userProfileButton.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    userProfileDropdown.classList.toggle('hidden');
+                    setTimeout(() => { userProfileDropdown.classList.toggle('dropdown-active'); }, 0);
+                });
+            }
+
+            window.addEventListener('resize', debounce(() => {
+                initializeSidebarLayout();
+            }, 150));
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    if (customAlertBox && !customAlertBox.classList.contains('invisible')) {
+                        hideCustomAlert();
+                    } else if (patientModal && !patientModal.classList.contains('modal-hidden')) {
+                        patientModalControls.close();
+                    }
+                }
+            });
+
+            const phoneInputs = [document.getElementById('emergency_contact_phone')];
+            phoneInputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('input', formatPhoneNumberOnInput);
+                }
+            });
+        }); 
+    </script>
+</body>
+
+</html>
