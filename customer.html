@@ -2359,6 +2359,157 @@
             }
         }
 
+        // --- ฟังก์ชันสำหรับเปิดหน้าต่าง Preview และพิมพ์ (แก้ไขล่าสุด: กลับมากำหนด A5 Landscape + Margin 0) ---
+        function openPrintPreview(elementId) {
+            const originalContent = document.getElementById(elementId);
+            if (!originalContent) return;
+
+            // คัดลอก CSS ทั้งหมดจากหน้าหลัก
+            const styles = document.querySelectorAll('style, link[rel="stylesheet"], link[rel="preconnect"]');
+            let styleTags = Array.from(styles).map(el => el.outerHTML).join('');
+
+            const previewStyle = `
+                <style>
+                    /* Reset Box Model */
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    body {
+                        background-color: #525659;
+                        display: flex;
+                        justify-content: center;
+                        align-items: flex-start;
+                        min-height: 100vh;
+                        margin: 0;
+                        padding: 20px;
+                        font-family: 'Sarabun', sans-serif;
+                    }
+                    
+                    /* --- หน้าจอ Preview (แสดงผล A5) --- */
+                    #${elementId} {
+                        display: block !important;
+                        background-color: white;
+                        box-shadow: 0 0 15px rgba(0,0,0,0.3);
+                        width: 210mm;
+                        height: 148mm;
+                        padding: 1cm;
+                        box-sizing: border-box;
+                        position: relative;
+                        margin-bottom: 20px;
+                        overflow: hidden;
+                    }
+
+                    .data-field { border-image: repeating-linear-gradient(to right, black 0, black 1px, transparent 1px, transparent 4px) 1 !important; }
+                    .address-print-wrapper::after { border-image: repeating-linear-gradient(to right, black 0, black 1px, transparent 1px, transparent 4px) 1 !important; }
+                    
+                    /* --- CSS โหมดการพิมพ์ (กำหนด size A5 Landscape และบังคับ Margin 0) --- */
+                    @media print {
+                        @page {
+                            size: A5 landscape;
+                            margin: 0; /* กำหนด Margin เป็น 0 ตามที่ต้องการ */
+                        }
+                        
+                        html, body {
+                            width: 210mm;
+                            height: 148mm;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background-color: white;
+                            overflow: hidden !important;
+                        }
+                        
+                        /* ซ่อน UI อื่นๆ */
+                        body > * {
+                            display: none !important;
+                        }
+
+                        /* แสดงเฉพาะ Container ที่ต้องการพิมพ์ */
+                        #${elementId} {
+                            display: block !important;
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 210mm !important;
+                            /* ใช้ความสูง 147mm เพื่อเป็น Safety Buffer ป้องกันหน้าเกินบน Mobile (148mm อาจปริ่มเกินไปในบาง Browser) */
+                            height: 147mm !important; 
+                            
+                            margin: 0 !important;
+                            padding: 0.8cm !important; /* คง Padding ภายในเพื่อให้สวยงาม */
+                            
+                            box-shadow: none !important;
+                            border: none !important;
+                            
+                            page-break-after: avoid !important;
+                            page-break-before: avoid !important;
+                            break-inside: avoid !important;
+                            
+                            overflow: hidden !important;
+                            z-index: 9999;
+                        }
+
+                        /* บังคับขนาดรูป SVG ในโหมดพิมพ์ */
+                        svg {
+                            max-height: 200px !important;
+                            width: auto;
+                        }
+                        
+                        footer {
+                            display: none !important;
+                        }
+                    }
+                </style>
+            `;
+
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                showCustomAlert('Browser บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์เอกสาร');
+                return;
+            }
+
+            // เขียน HTML ใหม่ทั้งหมดลงในหน้าต่างใหม่
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <title>Print Preview</title>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    ${styleTags}
+                    ${previewStyle}
+                </head>
+                <body>
+                    <div id="${elementId}" class="printing">
+                        ${originalContent.innerHTML}
+                    </div>
+                    <script>
+                        function adjustFontSizeToFit(element) {
+                            if (!element || element.id === 'print_opd_chiefComplaint') return;
+                            let maxWidth = element.parentElement.offsetWidth;
+                            element.style.fontSize = '';
+                            let fontSize = parseInt(window.getComputedStyle(element).fontSize) || 10;
+                            while (element.scrollWidth > maxWidth && fontSize > 3) {
+                                fontSize--;
+                                element.style.fontSize = fontSize + 'px';
+                            }
+                        }
+                        
+                        window.onload = function() {
+                            document.querySelectorAll('.adjustable-font').forEach(el => adjustFontSizeToFit(el));
+                            setTimeout(() => {
+                                window.print();
+                            }, 800);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+        }
+
         function populateAndPrintPatientRecord(patientId) {
             const patientData = allMockPatients.find(p => p.hn === patientId);
             if (!patientData) { showCustomAlert('ไม่พบข้อมูลผู้ป่วยสำหรับพิมพ์'); return; }
@@ -2402,16 +2553,11 @@
             setText('print_emergencyPhone', patientData.emergency_contact_phone);
             setText('print_symptoms', patientData.chiefComplaint);
             setText('print_bloodType', patientData.bloodGroup);
-            setText('print_allergies', patientData.allergies);
-            setText('print_chronicDisease', patientData.medicalHistory);
-
-            printContainer.classList.add('printing');
-            setTimeout(() => {
-                // Adjust fonts after the print layout is rendered
-                printContainer.querySelectorAll('.adjustable-font').forEach(el => adjustFontSizeToFit(el));
-                window.print();
-                printContainer.classList.remove('printing');
-            }, 150); // Increased timeout slightly for rendering
+            // ใช้ฟังก์ชัน openPrintPreview แทนการพิมพ์แบบเดิม (ลบการ add class 'printing' เดิมออก)
+            // printContainer.classList.add('printing'); <-- ลบบรรทัดเดิมนี้ทิ้ง
+            // setTimeout(...) <-- ลบ logic เดิมทิ้ง
+            
+            openPrintPreview('print-container');
         }
 
         function populateAndPrintOpdCard(patientHn, treatmentDateTime) {
@@ -2486,10 +2632,10 @@
                 const label = document.createElement('label');
 
                 if (name === 'ฝังเข็มกระตุ้นไฟฟ้า') {
-                    label.className = 'checkbox-label items-center'; // Vertically center the whole label content
+                    label.className = 'checkbox-label items-center';
                     label.innerHTML = `<span class="checkbox mr-2 flex-shrink-0">${isChecked ? '✔' : ''}</span><span style="line-height: 1.1; display: inline-block;">ฝังเข็ม<br>กระตุ้นไฟฟ้า</span>`;
                 } else {
-                    label.className = 'checkbox-label items-start'; // Default alignment
+                    label.className = 'checkbox-label items-start';
                     label.innerHTML = `<span class="checkbox mr-2 mt-1 flex-shrink-0">${isChecked ? '✔' : ''}</span><span>${name}</span>`;
                 }
 
@@ -2505,20 +2651,15 @@
             const practitionerTitle = printContainer.querySelector('#print_opd_practitioner_title');
 
             if (practitionerName && practitionerName.trim() !== '' && practitionerSignatureLine && practitionerTitle) {
-                practitionerSignatureLine.innerHTML = '&nbsp;'; // Blank line for signature
-                practitionerTitle.textContent = '(พจ. พงษ์สิทธิ์ แซ่อึ้ง)'; // Set the full name
+                practitionerSignatureLine.innerHTML = '&nbsp;';
+                practitionerTitle.textContent = '(พจ. พงษ์สิทธิ์ แซ่อึ้ง)';
             } else if (practitionerSignatureLine && practitionerTitle) {
-                practitionerSignatureLine.innerHTML = '&nbsp;'; // Still blank
-                practitionerTitle.textContent = '(ลงชื่อแพทย์ผู้ตรวจ)'; // Default text
+                practitionerSignatureLine.innerHTML = '&nbsp;';
+                practitionerTitle.textContent = '(ลงชื่อแพทย์ผู้ตรวจ)';
             }
 
-            printContainer.classList.add('printing');
-            setTimeout(() => {
-                // Adjust fonts after the print layout is rendered
-                printContainer.querySelectorAll('.adjustable-font').forEach(el => adjustFontSizeToFit(el));
-                window.print();
-                printContainer.classList.remove('printing');
-            }, 150); // Increased timeout slightly for rendering
+            // ใช้ฟังก์ชัน openPrintPreview แทนการพิมพ์แบบเดิม
+            openPrintPreview('print-opd-container');
         }
 
         document.addEventListener('DOMContentLoaded', function () {
