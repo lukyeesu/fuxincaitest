@@ -1,2 +1,0 @@
-# fuxincaitest
-tests เล่นๆ
